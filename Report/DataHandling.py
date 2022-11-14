@@ -27,3 +27,4 @@ train['ps_reg_03'] = mean_imp.fit_transform(train[['ps_reg_03']]).ravel()
 train['ps_car_12'] = mean_imp.fit_transform(train[['ps_car_12']]).ravel()
 train['ps_car_14'] = mean_imp.fit_transform(train[['ps_car_14']]).ravel()
 train['ps_car_11'] = mode_imp.fit_transform(train[['ps_car_11']]).ravel()
+
