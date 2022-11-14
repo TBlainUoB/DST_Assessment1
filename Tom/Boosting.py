@@ -36,7 +36,7 @@ missingvalues(test)
 
 id_test = test['id'].values
 id_train = train['id'].values
-y = train['target']
+y_train = train['target']
 del train['target']
 
 model = XGBClassifier(
@@ -53,5 +53,9 @@ model = XGBClassifier(
                         reg_lambda=1.3,
                      )
 
-
-
+model.fit(train,y_train)
+preds = model.predict(test)
+print(preds)
+df = {'id': [test['id']], 'prediction': [preds]}
+results = pd.DataFrame(df)
+results.to_csv('Results.csv')
