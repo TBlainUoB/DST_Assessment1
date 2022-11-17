@@ -4,4 +4,12 @@ author: "Xin Guan"
 date: "13/11/2022"
 output: html_document
 ---
+```{r}
+TestData0<-read.csv("/Users/xin/Desktop/porto-seguro-safe-driver-prediction/test.csv")
+```
+
+```{r}
+summary(TestData0)
+```
+
 
