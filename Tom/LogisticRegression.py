@@ -1,7 +1,6 @@
 import numpy as np
 import pandas as pd
 from sklearn.impute import SimpleImputer
-from xgboost import XGBClassifier
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve, auc
 from sklearn.model_selection import StratifiedKFold, GridSearchCV
@@ -29,6 +28,9 @@ def missingvalues(data):
 missingvalues(train)
 missingvalues(test)
 
+train.to_csv('New_Dataset/train.csv')
+test.to_csv('New_Dataset/test.csv')
+
 
 id_test = test['id'].values
 id_train = train['id'].values
@@ -41,7 +43,6 @@ kf = StratifiedKFold(n_splits=5, random_state=0, shuffle=True)
 pred_test_full = 0
 cv_score = []
 i = 1
-print(len(train), len(y_train))
 for id_train, id_test in kf.split(train, y_train):
     xtr,xvl = train.loc[id_train], train.loc[id_test]
     ytr, yvl = y_train[id_train], y_train[id_test]
@@ -54,3 +55,4 @@ for id_train, id_test in kf.split(train, y_train):
     cv_score.append(score)
     pred_test_full += lr.predict_proba(test)[:,1]
     i+=1
+
