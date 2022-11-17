@@ -18,8 +18,7 @@ head = trainData0.head()
 
 #%%
 trainData0.shape
-#We can see that there are 595,212 taining samples with 59 variables, one of 
-#the variables will be our target.
+#We can see that there are 595,212 taining samples with 59 variables, one of the variables will be our target.
 
 #%%
 trainData0.info()
@@ -27,9 +26,8 @@ trainData0.info()
 
 #%%
 summary = trainData0.describe()
-#We can see that in our train data, there are no missing value for the target, 
-#which is the label we want to predict; Also there are lot more 0's than 1's, 
-#because our mean is 0.03.
+#We can see that in our train data, there are no missing value for the target, which is the label we want to predict; 
+#Also there are lot more 0's than 1's, because our mean is 0.03.
 
 #%%
 missing=dict()
@@ -41,14 +39,12 @@ for i in trainData0.columns:
 
 #%%
 var_rand_miss = [key  for (key, value) in missing.items() if 0< value <0.05 ]
-# a variable with missing rate less than 5%, we consider it as inconsequential,
-# and therefore rows in these features could be dropped (Schafer 1999).
+# a variable with missing rate less than 5%, we consider it as inconsequential, and therefore rows in these features could be dropped (Schafer 1999).
 
 #%%
 for i in var_rand_miss:
     trainData0 = trainData0[trainData0[i] != -1]
-#For each of the variables with missing rate less than 5%, remove the rows 
-#with missing value.
+#For each of the variables with missing rate less than 5%, remove the rows with missing value.
 
 
 
