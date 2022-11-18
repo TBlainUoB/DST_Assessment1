@@ -9,7 +9,55 @@ output: html_document
 knitr::opts_chunk$set(echo = TRUE)
 ```
 
+https://www.kaggle.com/code/captcalculator/logistic-regression-and-roc-curve-primer
+
+
 ```{r}
-train<-read.csv("train.csv")
+#Loading optimised training data
+train<-read.csv("train_new.csv")
+#Deleting ID column
+train<- train[,(2:58)]
+#Creating observed variable column and covariate matrix X
+target<-as.data.frame(train$target)
+covariates<-train[,(3:57)]
 ```
+
+```{r}
+#Creating linear model
+
+#First trying to write formula
+model.formula<-paste("target ~ ",names(covariates)[1])
+for (i in 2:55){
+  model.formula<-paste(model.formula," + ",names(covariates)[i])
+}
+
+
+LogitModel<- glm(target~., family = binomial(link = logit), data = train)
+```
+
+
+```{r}
+#fuckin around
+anova(LogitModel,test='Chisq')
+```
+```{r}
+#Let's try someone else's code
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(verification))
+library(repr)
+```
+```{r}
+#Turning all categorical variables to factors
+
+cat_vars <- names(train)[grepl('_cat$', names(train))]
+
+# convert categorical features to factors
+train <- train %>%
+    mutate_at(.vars = cat_vars, .funs = as.factor)
+
+# One hot encode the factor variables
+train <- model.matrix(~ . - 1, data = train)
+```
+
 
