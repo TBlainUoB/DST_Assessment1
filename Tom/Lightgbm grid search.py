@@ -1,12 +1,9 @@
-import gc
-
 import numpy as np
 import pandas as pd
 from datetime import datetime
 
-import xgboost
+import lightgbm as lgbm
 from sklearn.impute import SimpleImputer
-from xgboost import XGBClassifier
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 from sklearn.preprocessing import LabelEncoder
@@ -45,37 +42,29 @@ def missingvalues(data):
 missingvalues(train)
 missingvalues(test)
 
-
-
-
-params = {
-        'min_child_weight': [1,5,10],
-        'gamma': [0.5, 1, 1.5, 2, 5],
-        'subsample': [0.6, 0.8, 1.0],
-        'colsample_bytree': [0.6, 0.8, 1.0],
-        'max_depth': [3, 4, 5]
-        }
+y_train = train['target'].values
+id_test = test['id'].values
+id_train = train['id'].values
+X = train.drop(['target', 'id'], axis=1)
+Test_X = test.drop(['id'], axis=1)
 
 MAX_ROUNDS = 400
 OPTIMIZE_ROUNDS = False
 LEARNING_RATE = 0.07
 EARLY_STOPPING_ROUNDS = 50
 
-y_train = train['target'].values
-X_train, X_test = train_test_split(train, test_size=0.75, stratify=y_train)
+params = {
+        'min_child_weight': [5,10,12,15],
+        'num_leaves': [4, 5, 8, 10, 15],
+        'subsample': [0.4, 0.6, 0.8],
+        'drop_rate': [0.1, 0.3, 0.5, 0.7],
+        'max_depth': [3, 4, 5, 7, 10, 12]
+        }
 
-id_test = test['id'].values
-id_train = X_train['id'].values
-y_train = X_train['target'].values
-X = X_train.drop(['target', 'id'], axis = 1)
-Test_X = test.drop(['id'], axis=1)
+model = lgbm.LGBMClassifier(learning_rate = LEARNING_RATE, n_estimators = 600, objective='binary', )
 
-model = XGBClassifier(
-                        learning_rate = LEARNING_RATE, n_estimators = 600, objective='binary:logistic', nthread=1
-                     )
-
-folds = 3
-param_comb = 5
+folds = 5
+param_comb = 30
 
 SKfold = StratifiedKFold(n_splits=folds, shuffle=True, random_state=1)
 
@@ -86,14 +75,7 @@ start_time = timer(None)
 
 random_search.fit(X, y_train)
 timer(start_time)
-'''
-model.fit(train,y_train)
-preds = model.predict(test)
-print(preds)
-df = {'id': [test['id']], 'prediction': [preds]}
-results = pd.DataFrame(df)
-results.to_csv('Results.csv')
-'''
+
 
 print('\n All results:')
 print(random_search.cv_results_)
@@ -104,4 +86,4 @@ print(random_search.best_score_)
 print('\n Best hyperparameters:')
 print(random_search.best_params_)
 results = pd.DataFrame(random_search.cv_results_)
-results.to_csv('xgb-randomgridsearch-results-01.csv')
+results.to_csv('lightgbm-randomgridsearch-results-03.csv')
