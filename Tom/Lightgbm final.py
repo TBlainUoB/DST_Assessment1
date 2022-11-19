@@ -1,12 +1,13 @@
 import numpy as np
 import pandas as pd
 from datetime import datetime
+from numba import jit
 
 import lightgbm as lgbm
 from sklearn.impute import SimpleImputer
 from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
 from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import roc_auc_score
 
 def timer(start_time = None):
@@ -18,32 +19,25 @@ def timer(start_time = None):
         tmin, tsec = divmod(temp_sec, 60)
         print('\n Time taken: %i hours %i minutes and %s seconds' % (thour, tmin, round(tsec, 2)))
 
-def Gini(y_true, y_pred):
-    # check and get number of samples
-    assert y_true.shape == y_pred.shape
-    n_samples = y_true.shape[0]
-
-    # sort rows on prediction column
-    # (from largest to smallest)
-    arr = np.array([y_true, y_pred]).transpose()
-    true_order = arr[arr[:, 0].argsort()][::-1, 0]
-    pred_order = arr[arr[:, 1].argsort()][::-1, 0]
-
-    # get Lorenz curves
-    L_true = np.cumsum(true_order) * 1. / np.sum(true_order)
-    L_pred = np.cumsum(pred_order) * 1. / np.sum(pred_order)
-    L_ones = np.linspace(1 / n_samples, 1, n_samples)
-
-    # get Gini coefficients (area between curves)
-    G_true = np.sum(L_ones - L_true)
-    G_pred = np.sum(L_ones - L_pred)
-
-    # normalize to true Gini coefficient
-    return G_pred * 1. / G_true
+@jit
+def gini(y_true, y_prob):
+    y_true = np.asarray(y_true)
+    y_true = y_true[np.argsort(y_prob)]
+    ntrue = 0
+    gini = 0
+    delta = 0
+    n = len(y_true)
+    for i in range(n-1, -1, -1):
+        y_i = y_true[i]
+        ntrue += y_i
+        gini += y_i * delta
+        delta += 1 - y_i
+    gini = 1 - 2 * gini / (ntrue * (n - ntrue))
+    return gini
 
 def evalerror(preds, dtrain):
     labels = dtrain.get_label()
-    return 'gini', Gini(labels, preds), True
+    return 'gini', gini(labels, preds), True
 
 
 train = pd.read_csv("Dataset/train.csv", dtype = {'id':np.int32, 'target':np.int8})
@@ -74,6 +68,30 @@ X = train.drop(['target', 'id'], axis=1)
 
 test_id = test['id']
 X_test = test.drop(['id'], axis=1)
+
+col_to_drop = X.columns[X.columns.str.startswith('ps_calc_')]
+X = X.drop(col_to_drop, axis=1)
+X_test = X_test.drop(col_to_drop, axis=1)
+
+cat_features = [col for col in X.columns if '_cat' in col]
+for column in cat_features:
+    temp = pd.get_dummies(pd.Series(X[column]), prefix=column)
+    X = pd.concat([X, temp], axis=1)
+    X = X.drop([column], axis=1)
+
+for column in cat_features:
+    temp = pd.get_dummies(pd.Series(X_test[column]), prefix=column)
+    X_test = pd.concat([X_test, temp], axis=1)
+    X_test = X_test.drop([column], axis=1)
+
+X = pd.DataFrame(X)
+X_test = pd.DataFrame(X_test)
+
+
+scaler = StandardScaler()
+scaler.fit_transform(X)
+scaler.fit_transform(X_test)
+X.to_csv("Dataset/encoded.csv")
 
 '''
 Best hyperparameters:
@@ -121,8 +139,11 @@ fold_scores = []
 cv_train = np.zeros(len(y_train))
 cv_pred = np.zeros(len(X_test))
 print(len(cv_pred))
+start_time = timer(None)
 
-for seed in range(20):
+iterations = 1
+for seed in range(iterations):
+    timer(start_time)
     params['seed'] = seed
     for id_train, id_test in SKfold.split(X, y_train):
         xtr, xvl = X.loc[id_train], X.loc[id_test]
@@ -139,4 +160,4 @@ for seed in range(20):
 
     cv_pred /= 5
 
-pd.DataFrame({'id': test_id, 'target': cv_pred / 20}).to_csv('lgbm_pred20.csv', index=False)
+pd.DataFrame({'id': test_id, 'target': cv_pred / iterations}).to_csv('lgbm_pred5-with-encodingscaling.csv', index=False)

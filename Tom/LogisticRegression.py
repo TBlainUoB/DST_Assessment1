@@ -4,7 +4,7 @@ from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve, auc
 from sklearn.model_selection import StratifiedKFold, GridSearchCV
-from sklearn.preprocessing import LabelEncoder
+from sklearn.preprocessing import LabelEncoder, StandardScaler
 
 #read files from folder
 train = pd.read_csv("Dataset/train.csv")
@@ -31,29 +31,45 @@ def missingvalues(data):
 missingvalues(train)
 missingvalues(test)
 
-#saves new datasets
-train.to_csv('New_Dataset/train.csv')
-test.to_csv('New_Dataset/test.csv')
 
-#new vector of id
-id_test = test['id'].values
+y_train = train['target'].values
 id_train = train['id'].values
-#target vector
-y_train = train['target'].astype('category')
-#removes these from the data as not relevant for model
-del train['target']
-del train['id']
-del test['id']
+X = train.drop(['target', 'id'], axis=1)
+
+id_test = test['id']
+X_test = test.drop(['id'], axis=1)
+
+col_to_drop = X.columns[X.columns.str.startswith('ps_calc_')]
+X = X.drop(col_to_drop, axis=1)
+X_test = X_test.drop(col_to_drop, axis=1)
+
+cat_features = [col for col in X.columns if '_cat' in col]
+for column in cat_features:
+    temp = pd.get_dummies(pd.Series(X[column]), prefix=column)
+    X = pd.concat([X, temp], axis=1)
+    X = X.drop([column], axis=1)
+
+for column in cat_features:
+    temp = pd.get_dummies(pd.Series(X_test[column]), prefix=column)
+    X_test = pd.concat([X_test, temp], axis=1)
+    X_test = X_test.drop([column], axis=1)
+
+X = pd.DataFrame(X)
+X_test = pd.DataFrame(X_test)
+
+scaler = StandardScaler()
+scaler.fit_transform(X)
+scaler.fit_transform(X_test)
 
 #StratifiedKFold
 kf = StratifiedKFold(n_splits=5, random_state=0, shuffle=True)
-pred_test_full = 0
+pred_test_full = np.zeros(len(id_test))
 cv_score = []
-i = 1
+
 #Loops over each fold
-for id_train, id_test in kf.split(train, y_train):
-    xtr,xvl = train.loc[id_train], train.loc[id_test]
-    ytr, yvl = y_train[id_train], y_train[id_test]
+for tr_id, te_id in kf.split(X, y_train):
+    xtr,xvl = X.loc[tr_id], X.loc[te_id]
+    ytr, yvl = y_train[tr_id], y_train[te_id]
     #initiates model
     lr = LogisticRegression(class_weight='balanced', C = 0.003)
     #fits model
@@ -64,6 +80,7 @@ for id_train, id_test in kf.split(train, y_train):
     score = roc_auc_score(yvl, pred_test)
     print('roc_auc_score', score)
     cv_score.append(score)
-    pred_test_full += lr.predict_proba(test)[:,1]
-    i+=1
+    pred_test_full += lr.predict_proba(X_test)[:,1]
+pred_test_full /= 5
 
+pd.DataFrame({'id': id_test, 'target': pred_test_full}).to_csv('baseline_log_regression1.csv', index=False)
