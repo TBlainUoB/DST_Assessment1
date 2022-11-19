@@ -12,7 +12,7 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.impute import SimpleImputer
 
-#from sklearn.preprocessing import StandardScaler #for standardizing data
+from sklearn.preprocessing import StandardScaler #for standardizing data
 
 #%%
 trainData = pd.read_csv("/Users/xin/Library/CloudStorage/OneDrive-UniversityofBristol/DST/DST_Assessment1/Xinyue Guan/Data/train.csv")
