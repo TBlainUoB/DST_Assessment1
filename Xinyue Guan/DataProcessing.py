@@ -114,5 +114,3 @@ testData.to_csv('Data/New_test.csv',index=False)
 
 
 
-#%%
-#PCA is affected by scale, so we need to standardize our data before we apply PCA.
