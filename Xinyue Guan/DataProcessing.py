@@ -88,13 +88,6 @@ missingvalues(trainData)
 missingvalues(testData)
 
 #%%
-
-#%%
-#saves new datasets
-trainData.to_csv('Data/New_train.csv',index=False)
-testData.to_csv('Data/New_test.csv',index=False)
-
-#%%
 trainData['target'].value_counts().plot(kind='bar', figsize=(5,5))
 # we can see that there is a lot more of 0s than 1s, as expected. The dataset is not balanced.
 
@@ -106,12 +99,17 @@ ax.set_title("Feature Correlation Matrix", fontsize=14)
 plt.show()
 # corrrelation plot, we can see that there is no correlation between target and the calc variables.
 
+#%%
+col_to_drop = testData.columns[testData.columns.str.startswith('ps_calc_')]
+trainData = trainData.drop(col_to_drop, axis=1)
+testData = testData.drop(col_to_drop, axis=1)
+#Drop the ps_calc_ variables for train and test data sets.
 
-
-
-
-
-
+#%%
+# saves new datasets
+trainData.to_csv('Data/New_train.csv',index=False)
+testData.to_csv('Data/New_test.csv',index=False)
+# these data sets are now ready for implementing algorithms.
 
 
 
