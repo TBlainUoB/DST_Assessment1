@@ -14,32 +14,33 @@ https://www.kaggle.com/code/captcalculator/logistic-regression-and-roc-curve-pri
 
 ```{r}
 #Loading optimised training data
-train<-read.csv("train_new.csv")
+train0<-read.csv("train_new.csv")
 #Deleting ID column
-train<- train[,(2:58)]
+train0<- train0[,(2:58)]
 #Creating observed variable column and covariate matrix X
-target<-as.data.frame(train$target)
-covariates<-train[,(3:57)]
+#target<-as.data.frame(train0$target)
+#covariates<-train0[,(3:57)]
 ```
 
 ```{r}
 #Creating linear model
 
 #First trying to write formula
-model.formula<-paste("target ~ ",names(covariates)[1])
-for (i in 2:55){
-  model.formula<-paste(model.formula," + ",names(covariates)[i])
-}
+#model.formula<-paste("target ~ ",names(covariates)[1])
+#for (i in 2:55){
+#  model.formula<-paste(model.formula," + ",names(covariates)[i])
+#}
 
 
-LogitModel<- glm(target~., family = binomial(link = logit), data = train)
+#LogitModel<- glm(target~., family = binomial(link = logit), data = train)
 ```
 
 
 ```{r}
 #fuckin around
-anova(LogitModel,test='Chisq')
+#anova(LogitModel,test='Chisq')
 ```
+
 ```{r}
 #Let's try someone else's code
 suppressPackageStartupMessages(library(tidyverse))
@@ -50,14 +51,163 @@ library(repr)
 ```{r}
 #Turning all categorical variables to factors
 
-cat_vars <- names(train)[grepl('_cat$', names(train))]
+cat_vars <- names(train0)[grepl('_cat$', names(train0))]
 
 # convert categorical features to factors
-train <- train %>%
+train0 <- train0 %>%
     mutate_at(.vars = cat_vars, .funs = as.factor)
 
 # One hot encode the factor variables
-train <- model.matrix(~ . - 1, data = train)
+train <- model.matrix(~ . - 1, data = train0)
 ```
 
+```{r}
+#SPLITTING DATA INTO TEST AND TRAIN
+
+# set seed for reproducibility
+set.seed(123)
+
+# making a train index
+train_index <- sample(c(TRUE, FALSE), replace = TRUE, size = nrow(train), prob = c(0.2, 0.8))
+
+# split the data according to the train index
+training <- as.data.frame(train[train_index, ])
+testing <- as.data.frame(train[!train_index, ])
+```
+
+```{r}
+#REMOVING LINEAR COMBINATIONS
+
+# find any linear combos in features
+lin_comb <- findLinearCombos(training)
+
+# take set difference of feature names and linear combos
+d <- setdiff(seq(1:ncol(training)), lin_comb$remove)
+
+# remove linear combo columns
+training <- training[, d]
+
+#Then this for some reason lol
+training <- training[, setdiff(names(training), 'ps_ind_02_cat4')]
+```
+
+```{r}
+#BUILDING NEW MODEL
+
+# estimate logistic regression model on training data
+logmod <- glm(target ~ . - id, data = training, family = binomial(link = 'logit'))
+```
+
+```{r}
+#PREDICTIONS AND ROC CURVE
+
+# make predictions on the test set
+preds <- predict(logmod, newdata = testing, type = "response")
+
+roc_data <- data.frame(
+    p0.3 = ifelse(preds > 0.3, 1, 0),
+    p0.2 = ifelse(preds > 0.2, 1, 0),
+    p0.1 = ifelse(preds > 0.1, 1, 0),
+    p0.05 = ifelse(preds > 0.05, 1, 0),
+    p0.04 = ifelse(preds > 0.04, 1, 0),
+    p0.03 = ifelse(preds > 0.03, 1, 0),
+    p0.02 = ifelse(preds > 0.02, 1, 0),
+    p0.01 = ifelse(preds > 0.01, 1, 0))
+
+# true positive (hit) rate
+tpr <- function(pred, actual) {
+    res <- data.frame(pred, actual)
+    sum(res$actual == 1 & res$pred == 1) / sum(actual == 1)
+}
+
+# false positive rate
+fpr <- function(pred, actual) {
+    res <- data.frame(pred, actual)
+    sum(res$actual == 0 & res$pred == 1) / sum(actual == 0)
+}
+
+actual <- testing$target
+
+# reshape to long format and get fpr and tpr for each threshold
+roc_data <- roc_data %>% 
+    gather(key = 'threshold', value = 'pred') %>% 
+    group_by(threshold) %>%
+    summarize(tpr = tpr(pred, actual = actual), 
+              fpr = fpr(pred, actual = actual))
+
+# set x and y tick marks
+breaks <-  c(0, 0.2, 0.4, 0.6, 0.8, 1)
+
+# get labels for plotting break points
+labels <- substr(roc_data$threshold, start = 2, stop = 5)
+
+# plot the ROC curve
+ggplot(data = roc_data, aes(x = fpr, y = tpr)) + 
+    geom_line() + 
+    geom_text(aes(label = labels), nudge_x = 0.05) + 
+    geom_abline(intercept = 0, slope = 1, linetype = 'dashed') + 
+    scale_x_continuous(limits = c(0, 1), breaks = breaks) + 
+    scale_y_continuous(limits = c(0,1), breaks = breaks) + 
+    labs(x = 'False Positive Rate', y = 'True Positive Rate', title = 'ROC Curve') + 
+    theme_bw()
+```
+```{r}
+#Or could've just done this lol
+
+roc.plot(
+    testing$target, 
+    preds, 
+    threshold = seq(0, max(preds), 0.01), 
+    plot.thres = c(0.03, 0.05, 0.1))
+```
+
+
+```{r}
+#FUCKIN AROUND WITH LASSO
+library(tidyverse)
+library(tidymodels)
+
+## 6. Finding the Performance of the Base Model
+set.seed(1234)
+library(pROC)
+
+#summary(logmod)
+new.var.names<-logmod %>% tidy() %>% filter(p.value < 0.05) %>% pull(term)
+new.var.names
+```
+
+```{r}
+#Now lets try a model w just these
+
+model.formula<-paste("target ~ ",new.var.names[1])
+for (i in 2:(length(new.var.names))){
+  model.formula<-paste(model.formula," + ",new.var.names[i])
+}
+new.var.names<-append(new.var.names,"target")
+
+
+logmod2<- glm(model.formula, family = binomial(link = logit), data = training)
+summary(logmod2)
+```
+
+```{r}
+#Now lets compare prediction
+preds2<-predict(logmod2, newdata = testing, type = "response")
+par(mfrow=c(1,2))
+roc.plot(
+    testing$target, 
+    preds2, 
+    threshold = seq(0, max(preds2), 0.01), 
+    plot.thres = c(0.03, 0.05, 0.1),
+    col='red')
+roc.plot(
+    testing$target, 
+    preds, 
+    threshold = seq(0, max(preds), 0.01), 
+    plot.thres = c(0.03, 0.05, 0.1),
+    col='blue'
+)
+roc.area(testing$target,preds)[1]
+roc.area(testing$target,preds2)[1]
+```
 
