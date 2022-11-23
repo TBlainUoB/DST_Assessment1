@@ -7,12 +7,9 @@ Created on Tue Nov 15 15:11:16 2022
 """
 #%%
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.impute import SimpleImputer
-
-from sklearn.preprocessing import StandardScaler #for standardizing data
 
 #%%
 trainData = pd.read_csv("/Users/xin/Library/CloudStorage/OneDrive-UniversityofBristol/DST/DST_Assessment1/Xinyue Guan/Data/train.csv")
@@ -63,6 +60,7 @@ for i in var_rand_miss1:
 #For each of the variables with missing rate less than 5%, remove the rows with missing value.
 
 trainData.drop(['ps_car_03_cat','ps_car_05_cat'], inplace=True, axis=1)
+testData.drop(['ps_car_03_cat','ps_car_05_cat'], inplace=True, axis=1)
 #We choose to drop the two variable which have the 70% and 45% missing rate in both train and test data sets.
 #%%
 missing1=dict()
@@ -74,6 +72,27 @@ missing2 = {k:v for (k,v) in test_missing.items() if 0.05<v<0.4}
 #Now we left with two variables 'ps_car_14' and 'ps_reg_03' to deal with, they have the corresponding missing rate 7% and 18% in both train and test data sets.
 #%%
 #Let's firstly try the simple imputation methods to see how the models work on the imputed dataset.
+#function to replace missing values in data
+def missingvalues(data):
+    mean_imp = SimpleImputer(missing_values=-1, strategy='mean')
+    mode_imp = SimpleImputer(missing_values=-1, strategy='most_frequent')
+    features = ['ps_reg_03','ps_car_12','ps_car_14','ps_car_11']
+    for i in features:
+        if i == 'ps_car_11':
+            data[i] = mode_imp.fit_transform(data[[i]]).ravel()
+        else:
+            data[i] = mean_imp.fit_transform(data[[i]]).ravel()
+
+#replace missing values on both train and test sets
+missingvalues(trainData)
+missingvalues(testData)
+
+#%%
+
+#%%
+#saves new datasets
+trainData.to_csv('Data/New_train.csv',index=False)
+testData.to_csv('Data/New_test.csv',index=False)
 
 #%%
 trainData['target'].value_counts().plot(kind='bar', figsize=(5,5))
@@ -86,8 +105,6 @@ sns.heatmap(corr, cmap='RdYlBu', annot_kws={'size':30}, ax=ax)
 ax.set_title("Feature Correlation Matrix", fontsize=14)
 plt.show()
 # corrrelation plot, we can see that there is no correlation between target and the calc variables.
-
-
 
 
 
