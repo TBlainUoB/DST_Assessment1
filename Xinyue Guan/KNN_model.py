@@ -8,12 +8,13 @@ Created on Sat Nov 19 12:19:12 2022
 #%%
 import pandas as pd
 import numpy as np
+import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler #for standardizing data
 from sklearn.neighbors import KNeighborsRegressor
-from sklearn.metrics import mean_squared_error,roc_auc_score, roc_curve, auc
+from sklearn.metrics import mean_squared_error,roc_auc_score, roc_curve, auc, accuracy_score
 from math import sqrt,ceil
 #from sklearn.decomposition import PCA
-from sklearn.model_selection import StratifiedKFold
+from sklearn.model_selection import StratifiedKFold, train_test_split
 #%%
 train = pd.read_csv('Data/New_train.csv')
 test = pd.read_csv('Data/New_test.csv')
@@ -28,6 +29,7 @@ X_test = test.drop(['id'], axis=1)
 
 X_train = pd.DataFrame(X_train)
 X_test = pd.DataFrame(X_test)
+y_train = pd.DataFrame(y_train)
 # store id and terget separately.
 
 #%%
@@ -43,48 +45,46 @@ scaled_test = pd.DataFrame(scaled_test0, columns=X_test.columns)
 #PCA is affected by scale, so we need to standardize our data before we apply PCA.
 
 
+#%%
+X_train, X_test, y_train, y_test = train_test_split(X_train,y_train,
+                                   test_size=0.25, 
+                                   shuffle=True)
+#Because the test data set doesn't contain target, we need to split our train data into train and test data.
 
+#%%
+knn_model0 = KNeighborsRegressor(n_neighbors=3) #default of distance metric is the Euclidean distance
+# fits model
+knn_model0.fit(X_train,y_train)
+y_pred = knn_model0.predict(X_test)
 
+#%%
+y_pred0=np.zeros(len(y_pred))
+n=len(y_pred)
+for i in range(0,n):
+    if y_pred[i]>0.5:
+        y_pred0[i]=1
+
+#%%
+accuracy_score(y_test,y_pred0)
+# running knn on training data once and then predict the test data set give an accuracy of 0.9610464477874163
 
 
 #%%
-# The test data set doesn't contain target, so we can't measure the performance of algorithms on it.
-# So we can stratify k fold on our train data set, and each time leave one fold for measuring the performance of algorithm.
-kf = StratifiedKFold(n_splits=5, random_state=0, shuffle=True)
-pred_test_full = np.zeros(ceil(4*len(id_train)/5))
-cv_score = []
 
-# Loops over each fold
-for tr_id, te_id in kf.split(scaled_train, y_train):
-    xtr, xvl = scaled_train.loc[tr_id], scaled_train.loc[te_id]
-    ytr, yvl = y_train[tr_id], y_train[te_id]
-    # initiates model
-    knn_model = KNeighborsRegressor(n_neighbors=3) #default of distance metric is the Euclidean distance
-    # fits model
-    knn_model.fit(xtr, ytr)
-    # predicts prob
-    pred_test = knn_model.predict(xvl)[:, 1]
-    # evaluates with roc_auc_score
-    score = roc_auc_score(yvl, pred_test)
-    print('roc_auc_score', score)
-    cv_score.append(score)
-    # predict for test set
-    pred_test_full += knn_model.predict(xvl)[:, 1]
-# average predictions over each fold
-pred_test_full /= 5
+fpr, tpr, threshold = roc_curve(y_test, y_pred0)
+roc_auc = auc(fpr, tpr)
 
+plt.title('Receiver Operating Characteristic')
+plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
+plt.legend(loc = 'lower right')
+plt.plot([0, 1], [0, 1],'r--')
+plt.xlim([0, 1])
+plt.ylim([0, 1])
+plt.ylabel('True Positive Rate')
+plt.xlabel('False Positive Rate')
+plt.title('ROC Curve of kNN')
+plt.show()
 
-
-
-
-#%%
-knn_model = KNeighborsRegressor(n_neighbors=3)
-knn_model.fit(scaled_train, y_train)
-# fit data into our kNN model with k=3.
-
-#%%
-train_preds = knn_model.predict(scaled_train)
-mse = mean_squared_error(y_train, train_preds)
-rmse = sqrt(mse)
-
+# The AUC score for our prediction is only approximately 0.5
+# This is because there is a lot more zeros than ones in our dataset.
 

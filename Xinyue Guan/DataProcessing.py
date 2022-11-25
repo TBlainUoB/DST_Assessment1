@@ -12,8 +12,8 @@ import seaborn as sns
 from sklearn.impute import SimpleImputer
 
 #%%
-trainData = pd.read_csv("/Users/xin/Library/CloudStorage/OneDrive-UniversityofBristol/DST/DST_Assessment1/Xinyue Guan/Data/train.csv")
-testData = pd.read_csv("/Users/xin/Library/CloudStorage/OneDrive-UniversityofBristol/DST/DST_Assessment1/Xinyue Guan/Data/test.csv")
+trainData = pd.read_csv("Data/train.csv")
+testData = pd.read_csv("Data/test.csv")
 
 #%%
 head = trainData.head()
