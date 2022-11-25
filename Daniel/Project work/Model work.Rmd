@@ -14,50 +14,172 @@ https://www.kaggle.com/code/captcalculator/logistic-regression-and-roc-curve-pri
 
 ```{r}
 #Loading optimised training data
-train<-read.csv("train_new.csv")
+train0<-read.csv("train_new.csv")
 #Deleting ID column
-train<- train[,(2:58)]
-#Creating observed variable column and covariate matrix X
-target<-as.data.frame(train$target)
-covariates<-train[,(3:57)]
+train0<- train0[,(2:58)]
+
 ```
 
 ```{r}
-#Creating linear model
+#Loading packages and setting seed for reproducibility
 
-#First trying to write formula
-model.formula<-paste("target ~ ",names(covariates)[1])
-for (i in 2:55){
-  model.formula<-paste(model.formula," + ",names(covariates)[i])
-}
-
-
-LogitModel<- glm(target~., family = binomial(link = logit), data = train)
-```
-
-
-```{r}
-#fuckin around
-anova(LogitModel,test='Chisq')
-```
-```{r}
-#Let's try someone else's code
+set.seed(1234)
 suppressPackageStartupMessages(library(tidyverse))
 suppressPackageStartupMessages(library(caret))
 suppressPackageStartupMessages(library(verification))
 library(repr)
+library(tidyverse)
+library(tidymodels)
+library(pROC)
 ```
+
+```{r}
+#Refining data?
+
+#Setting target to a factor variable
+train0 %>% mutate(target=factor(target)) %>% mutate(target=fct_recode(target, YES='1', NO='0')) -> train1
+
+# making a train index
+train_index <- sample(c(TRUE, FALSE), replace = TRUE, size = nrow(train1), prob = c(0.2, 0.8))
+
+# split the data according to the train index
+training1 <- as.data.frame(train1[train_index, ])
+testing1 <- as.data.frame(train1[!train_index, ])
+
+#preprocessing data
+
+data_recipe <- recipe(target~., data=training1) %>% 
+  step_nzv(all_predictors(), -all_outcomes()) %>% 
+  step_normalize(all_numeric(), -all_outcomes()) %>% 
+  step_YeoJohnson(all_numeric(), -all_outcomes()) %>% 
+  step_spatialsign(all_numeric(), -all_outcomes()) %>% 
+  step_corr(all_numeric(), threshold=0.75, -all_outcomes()) %>% 
+  step_dummy(all_nominal(), -all_outcomes()) %>% 
+  prep()
+
+baked_training1 <- bake(data_recipe, training1)
+baked_testing1 <- bake(data_recipe, testing1)
+
+```
+
+```{r}
+#Now making the model
+
+logmod.1 <- glm(target~., data=baked_training1, family=binomial)
+summary(logmod.1)
+logmod.1 %>% tidy() %>% filter(p.value < 0.05) %>% pull(term)
+```
+```{r}
+#Now a new model with onlt significant terms
+
+logmod.2 <- glm(target~ps_ind_01 + ps_ind_04_cat + ps_ind_07_bin + ps_ind_08_bin + ps_ind_15+ps_ind_17_bin+ps_reg_01+ ps_reg_02+ps_car_07_cat+ps_car_11+ps_car_13+  ps_car_14+ps_calc_09, data=baked_training1, family=binomial)
+summary(logmod.2)
+```
+
+```{r}
+#checking ROC
+
+preds.logmod.1 <- predict(logmod.1, newdata = baked_testing1, type = "response")
+preds.logmod.2 <- predict(logmod.2, newdata = baked_testing1, type = "response")
+actual<-as.numeric(baked_testing1$target)-1
+par(mfrow=c(1,2))
+roc.plot(actual,preds.logmod.1,threshold = seq(0, max(preds), 0.01), plot.thres = c(0.03, 0.05, 0.1))
+roc.plot(actual,preds.logmod.2,threshold = seq(0, max(preds), 0.01), plot.thres = c(0.03, 0.05, 0.1))
+roc.area(actual,preds.logmod.1)
+roc.area(actual,preds.logmod.2)
+```
+
+
+
 ```{r}
 #Turning all categorical variables to factors
 
-cat_vars <- names(train)[grepl('_cat$', names(train))]
+cat_vars <- names(training1)[grepl('_cat$', names(training1))]
 
 # convert categorical features to factors
-train <- train %>%
+training1 <- training1 %>%
     mutate_at(.vars = cat_vars, .funs = as.factor)
 
 # One hot encode the factor variables
-train <- model.matrix(~ . - 1, data = train)
+training2 <- model.matrix(~ . - 1, data = training1)
 ```
+
+
+
+```{r}
+#REMOVING LINEAR COMBINATIONS
+
+# find any linear combos in features
+lin_comb <- findLinearCombos(training2)
+
+# take set difference of feature names and linear combos
+d <- setdiff(seq(1:ncol(training2)), lin_comb$remove)
+
+# remove linear combo columns
+training2 <- training2[, d]
+
+training2<-as.data.frame(training2)
+training3<-training2[,-2]
+#Then this for some reason lol
+#training2 <- training2[, setdiff(names(training2), 'ps_ind_02_cat4')]
+```
+
+```{r}
+#BUILDING NEW MODEL
+
+# estimate logistic regression model on training data
+logmod.3 <- glm(targetYES ~ . - id, data = training3, family = binomial(link = 'logit'))
+summary(logmod.3)
+logmod.3 %>% tidy() %>% filter(p.value < 0.05) %>% pull(term)
+```
+```{r}
+#And again we'll LASSO this shit
+
+logmod.4 <- glm(targetYES ~ ps_ind_03+ps_ind_05_cat0+ps_ind_05_cat1+ps_ind_05_cat3+ps_ind_05_cat4+ps_ind_05_cat6+ps_ind_07_bin+ps_ind_08_bin+ps_ind_15+ps_ind_17_bin+ps_reg_01+ps_car_04_cat2+ps_car_04_cat6+ps_car_04_cat8+ps_car_04_cat9+ps_car_07_cat0+ps_car_08_cat1+ps_car_11_cat4+ps_car_11_cat26+ps_car_11_cat41+ps_car_11_cat50+ps_car_11_cat58+ps_car_11_cat63+ps_car_11_cat76+ps_car_11_cat97+ps_car_13+ps_calc_09, data = training3, family = binomial(link = 'logit'))
+summary(logmod.4)
+```
+```{r}
+#might need this
+cat_vars <- names(baked_testing1)[grepl('_cat$', names(baked_testing1))]
+
+# convert categorical features to factors
+baked_testing1 <- baked_testing1 %>%
+    mutate_at(.vars = cat_vars, .funs = as.factor)
+
+# One hot encode the factor variables
+testing2 <- model.matrix(~ . - 1, data = baked_testing1)
+testing2<-as.data.frame(testing2)
+```
+
+
+
+```{r}
+#Then compare ROC's
+
+preds.logmod.3 <- predict(logmod.3, newdata = baked_testing1, type = "response")
+preds.logmod.4 <- predict(logmod.4, newdata = testing2, type = "response")
+actual<-testing2$targetYES
+par(mfrow=c(1,2))
+roc.plot(actual,preds.logmod.3,threshold = seq(0, max(preds), 0.01), plot.thres = c(0.03, 0.05, 0.1))
+roc.plot(actual,preds.logmod.4,threshold = seq(0, max(preds), 0.01), plot.thres = c(0.03, 0.05, 0.1))
+roc.area(actual,preds.logmod.3)
+roc.area(actual,preds.logmod.4)
+```
+
+
+
+
+
+
+```{r}
+#Now lets try a model w just these
+
+#model.formula<-paste("target ~ ",new.var.names[1])
+#for (i in 2:(length(new.var.names))){
+#  model.formula<-paste(model.formula," + ",new.var.names[i])
+#}
+#new.var.names<-append(new.var.names,"target")
+```
+
 
 
