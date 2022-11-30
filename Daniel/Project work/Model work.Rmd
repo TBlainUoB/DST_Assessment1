@@ -180,6 +180,47 @@ roc.area(actual,preds.logmod.4)
 #}
 #new.var.names<-append(new.var.names,"target")
 ```
+```{r}
+#gini
+
+gini<-function(y_true,y_prob){
+    y_true <- as.array(y_true)
+    y_true <- y_true[order(y_prob)]
+    ntrue <- 0
+    ginii <- 0
+    delta <- 0
+    n <- length(y_true)
+    for (i in seq(n,0,-1)){
+        ntrue <-ntrue+ y_true[i]
+        ginii <-ginii+ y_true[i] * delta
+        delta <-delta+ 1 - y_true[i]
+    }
+    ginii <- 1 - 2 * ginii / (ntrue * (n - ntrue))
+    return(ginii)
+}
+
+normalizedGini <- function(aa, pp) {
+    Gini <- function(a, p) {
+        if (length(a) !=  length(p)) stop("Actual and Predicted need to be equal lengths!")
+        temp.df <- data.frame(actual = a, pred = p, range=c(1:length(a)))
+        temp.df <- temp.df[order(-temp.df$pred, temp.df$range),]
+        population.delta <- 1 / length(a)
+        total.losses <- sum(a)
+        null.losses <- rep(population.delta, length(a)) # Hopefully is similar to accumulatedPopulationPercentageSum
+        accum.losses <- temp.df$actual / total.losses # Hopefully is similar to accumulatedLossPercentageSum
+        gini.sum <- cumsum(accum.losses - null.losses) # Not sure if this is having the same effect or not
+        sum(gini.sum) / length(a)
+    }
+    Gini(aa,pp) / Gini(aa,aa)
+}
+
+
+
+normalizedGini(actual,preds.logmod.1)
+normalizedGini(actual,preds.logmod.2)
+normalizedGini(actual,preds.logmod.3)
+normalizedGini(actual,preds.logmod.4)
+```
 
 
 
