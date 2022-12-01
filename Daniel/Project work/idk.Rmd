@@ -1,0 +1,186 @@
+---
+title: "Model work refined"
+author: "Daniel Gardner"
+date: "`r Sys.Date()`"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Loading in packages
+set.seed(1234)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(verification))
+library(repr)
+library(tidyverse)
+library(tidymodels)
+library(pROC)
+```
+
+```{r}
+#Creating gini function (Used later for model validation)
+normalizedGini <- function(aa, pp) {
+    Gini <- function(a, p) {
+        if (length(a) !=  length(p)) stop("Actual and Predicted need to be equal lengths!")
+        temp.df <- data.frame(actual = a, pred = p, range=c(1:length(a)))
+        temp.df <- temp.df[order(-temp.df$pred, temp.df$range),]
+        population.delta <- 1 / length(a)
+        total.losses <- sum(a)
+        null.losses <- rep(population.delta, length(a)) # Hopefully is similar to accumulatedPopulationPercentageSum
+        accum.losses <- temp.df$actual / total.losses # Hopefully is similar to accumulatedLossPercentageSum
+        gini.sum <- cumsum(accum.losses - null.losses) # Not sure if this is having the same effect or not
+        sum(gini.sum) / length(a)
+    }
+    Gini(aa,pp) / Gini(aa,aa)
+}
+```
+
+```{r}
+#Loading in refined training and testing data
+train<-read.csv("train_new.csv")
+# convert categorical features to factors
+#cat_vars <- names(train)[grepl('_cat$', names(train))]
+#train <- train %>%
+#    mutate_at(.vars = cat_vars, .funs = as.factor)
+#Then split into training and validation set
+train_index <- sample(c(TRUE, FALSE), replace = TRUE, size = nrow(train), prob = c(0.2, 0.8))
+# split the data according to the train index
+training <- as.data.frame(train[train_index, ])
+testing <- as.data.frame(train[!train_index, ])
+```
+
+```{r}
+#REMOVING LINEAR COMBINATIONS
+training<-training[,-c(1,2)]
+# find any linear combos in features
+lin_comb <- findLinearCombos(training)
+# take set difference of feature names and linear combos
+d <- setdiff(seq(1:ncol(training)), lin_comb$remove)
+# remove linear combo columns
+training <- training[, d]
+training<-as.data.frame(training)
+
+```
+
+```{r}
+#Building linear model
+logmod <- glm(target ~ . , data = training, family = binomial(link = 'logit'))
+summary(logmod)
+formula.names<-logmod %>% tidy() %>% filter(p.value < 0.05) %>% pull(term)
+formula.names<-formula.names[-1]
+```
+
+```{r}
+#Building LASSO model
+model.formula<-paste("target ~ ",formula.names[1])
+for (i in 2:(length(formula.names))){
+  model.formula<-paste(model.formula," + ",formula.names[i])
+}
+logmod.lasso <- glm(model.formula, data = training, family = binomial(link = 'logit'))
+summary(logmod.lasso)
+```
+
+```{r}
+#Prediction
+
+
+actual<-testing$target
+
+lin_comb2 <- findLinearCombos(testing)
+# take set difference of feature names and linear combos
+d <- setdiff(seq(1:ncol(testing)), lin_comb2$remove)
+# remove linear combo columns
+testing <- testing[, d]
+testing<-as.data.frame(testing)
+testing<-testing[-c(1,2)]
+
+preds.logmod <- predict(logmod, newdata = testing[,-c(1,2,3)], type = "response")
+preds.logmod.lasso <- predict(logmod.lasso, newdata = testing[,-c(1,2,3)], type = "response")
+
+
+roc.area(actual,preds.logmod.lasso)
+normalizedGini(actual,preds.logmod)
+```
+
+
+```{r}
+#On actual data
+test.for.id<-read.csv("test.csv")
+ids<-test$id
+
+test<-read.csv("test_new.csv")
+preds<-predict(logmod.lasso_full,newdata=test[-c(1,2)],type='response')
+submission <- data.frame(
+ id = ids,
+ target = pred3[,1],
+ stringsAsFactors = FALSE
+)
+write.csv(submission,"submission.csv", row.names = FALSE)
+```
+
+```{r}
+#Lets try this
+train_full<-train[,-c(1,2)]
+train_full <- train_full[, d]
+train_full<-as.data.frame(train_full)
+
+
+logmod_full<-glm(target ~ . , data = train_full, family = binomial(link = 'logit'))
+formula.names_full<-logmod_full %>% tidy() %>% filter(p.value < 0.05) %>% pull(term)
+formula.names_full<-formula.names_full[-1]
+
+model.formula_full<-paste("target ~ ",formula.names_full[1])
+for (i in 2:(length(formula.names_full))){
+  model.formula_full<-paste(model.formula_full," + ",formula.names_full[i])
+}
+logmod.lasso_full <- glm(model.formula_full, data = train_full, family = binomial(link = 'logit'))
+summary(logmod.lasso_full)
+
+```
+
+```{r}
+#Let's try and use linear lecture notes
+library(glmnet)
+grid<-10^seq(10,-2,length.out=100)
+X<-as.matrix(train_full[,-1])
+y<-as.matrix(train_full[,1])
+ridge.fit<-glmnet(X,y,lambda=1e-7,standardise=TRUE,alpha=0)
+lasso.fit<-glmnet(X,y,lambda=1e-7,standardise=TRUE,alpha=1)
+```
+
+```{r}
+#Lets try see this
+par(mar=c(2.5,2.5,.5,.5))
+plot(coef(logmod),ylab='',ylim=c(-1.5,1.5))
+points(coef(ridge.fit),pch=2,col=2)
+points(coef(lasso.fit),pch=3,col=4)
+
+#lmao uhhhh
+```
+
+
+```{r}
+#Aight what about
+
+cv.ridge.fit<-cv.glmnet(X,y,standardise=TRUE,alpha=0)
+cv.lasso.fit<-cv.glmnet(X,y,standardise=TRUE,alpha=1)
+beta<-coef(cv.ridge.fit,s=c(cv.ridge.fit$lambda.min,cv.ridge.fit$lambda.1se))
+alpha<-coef(cv.lasso.fit,s=c(cv.lasso.fit$lambda.min,cv.lasso.fit$lambda.1se))
+
+cv.lasso.fit.min<-glmnet(X,y,lambda=cv.lasso.fit$lambda.min,standardise=TRUE,alpha=1)
+cv.lasso.fit.1se<-glmnet(X,y,lambda=cv.lasso.fit$lambda.1se,standardise=TRUE,alpha=1)
+
+pred3<-predict.glmnet(cv.lasso.fit.1se,newx=test1,type='response')
+
+test1<-test
+test1<-test1[-c(1,2)]
+test1 <- test1[, d-1]
+test1<-as.matrix(test1)
+
+```
+
+
