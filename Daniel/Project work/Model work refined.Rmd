@@ -97,5 +97,13 @@ summary(logmod.lasso)
 
 ```{r}
 #Prediction
+
+preds.logmod <- predict(logmod, newdata = testing, type = "response")
+preds.logmod.lasso <- predict(logmod.lasso, newdata = testing, type = "response")
+actual<-testing$target
+
+normalizedGini(preds.logmod,actual)
 ```
+
+
 
