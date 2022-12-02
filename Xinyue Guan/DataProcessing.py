@@ -75,15 +75,11 @@ missing2 = {k:v for (k,v) in test_missing.items() if 0.05<v<0.4}
 #function to replace missing values in data
 def missingvalues(data):
     mean_imp = SimpleImputer(missing_values=-1, strategy='mean')
-    mode_imp = SimpleImputer(missing_values=-1, strategy='most_frequent')
-    features = ['ps_reg_03','ps_car_12','ps_car_14','ps_car_11']
+    features = ['ps_reg_03','ps_car_14']
     for i in features:
-        if i == 'ps_car_11':
-            data[i] = mode_imp.fit_transform(data[[i]]).ravel()
-        else:
-            data[i] = mean_imp.fit_transform(data[[i]]).ravel()
+        data[i] = mean_imp.fit_transform(data[[i]]).ravel()
 
-#replace missing values on both train and test sets
+#mean imputation for missin values for the 'ps_car_14' and 'ps_reg_03'
 missingvalues(trainData)
 missingvalues(testData)
 
@@ -110,7 +106,5 @@ testData = testData.drop(col_to_drop, axis=1)
 trainData.to_csv('Data/New_train.csv',index=False)
 testData.to_csv('Data/New_test.csv',index=False)
 # these data sets are now ready for implementing algorithms.
-
-
 
 
