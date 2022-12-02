@@ -3,8 +3,24 @@ import pandas as pd
 from sklearn.impute import SimpleImputer
 from sklearn.linear_model import LogisticRegression
 from sklearn.metrics import confusion_matrix, roc_auc_score, roc_curve, auc
-from sklearn.model_selection import StratifiedKFold, GridSearchCV
+from sklearn.model_selection import StratifiedKFold, GridSearchCV, train_test_split
 from sklearn.preprocessing import LabelEncoder, StandardScaler
+from numba import jit
+@jit
+def gini(y_true, y_prob):
+    y_true = np.asarray(y_true)
+    y_true = y_true[np.argsort(y_prob)]
+    ntrue = 0
+    gini = 0
+    delta = 0
+    n = len(y_true)
+    for i in range(n-1, -1, -1):
+        y_i = y_true[i]
+        ntrue += y_i
+        gini += y_i * delta
+        delta += 1 - y_i
+    gini = 1 - 2 * gini / (ntrue * (n - ntrue))
+    return gini
 
 
 def dropmissingcol(pdData):
@@ -55,7 +71,13 @@ def DropCalcCol(train, test):
 
 # read files from folder
 train = pd.read_csv("Dataset/train.csv")
-test = pd.read_csv("Dataset/test.csv")
+#test = pd.read_csv("Dataset/test.csv")
+
+train, test = train_test_split(train, test_size=0.25, random_state=42)
+train = pd.DataFrame(train)
+test = pd.DataFrame(test)
+train.to_csv("new_train.csv", index=False)
+test.to_csv("new_test.csv", index=False)
 
 train = dropmissingcol(train)
 train = missingvalues(train)
@@ -66,6 +88,8 @@ y_train = train['target'].values
 train_id = train['id'].values
 X = train.drop(['target', 'id'], axis=1)
 
+target_test = test['target'].values
+test = test.drop(['target'], axis=1)
 test_id = test['id']
 X_test = test.drop(['id'], axis=1)
 
@@ -91,8 +115,9 @@ for tr_id, te_id in kf.split(X, y_train):
     # predicts prob
     pred_test = lr.predict_proba(xvl)[:, 1]
     # evaluates with roc_auc_score
-    score = roc_auc_score(yvl, pred_test)
-    print('roc_auc_score', score)
+
+    score = gini(yvl, pred_test)
+    print('gini', score)
     cv_score.append(score)
     # predict for test set
     pred_test_full += lr.predict_proba(X_test)[:, 1]
