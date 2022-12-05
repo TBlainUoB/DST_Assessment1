@@ -11,7 +11,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.preprocessing import StandardScaler #for standardizing data
 from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import  roc_curve,auc, accuracy_score
+from sklearn.metrics import  roc_curve,auc, accuracy_score, confusion_matrix
 from math import ceil
 from sklearn.ensemble import BaggingClassifier,RandomForestClassifier
 from sklearn.decomposition import PCA
@@ -25,29 +25,28 @@ y_train = train['target'].values
 id_train = train['id'].values
 X_train = train.drop(['target', 'id'], axis=1)
 
-id_test = test['id']
-X_test = test.drop(['id'], axis=1)
+id_test = test['id'].values
+X_test = test.drop(['target','id'], axis=1)
+y_test = test['target'].values
 
 X_train = pd.DataFrame(X_train)
 X_test = pd.DataFrame(X_test)
 y_train = pd.DataFrame(y_train)
+y_train1=y_train.to_numpy()
+y_train1=y_train1.ravel()
+
 # store id and terget separately.
 
 #%%
 scaler = StandardScaler()
 scaled_train0= scaler.fit_transform(X_train)
-scaled_train = pd.DataFrame(scaled_train0, columns=X_train.columns)
+X_train = pd.DataFrame(scaled_train0, columns=X_train.columns)
 scaled_test0 = scaler.fit_transform(X_test)
-scaled_test = pd.DataFrame(scaled_test0, columns=X_test.columns)
+X_test = pd.DataFrame(scaled_test0, columns=X_test.columns)
 # StandardScaler standardizes features by removing the mean and scaling to unit variance.
 
 
 
-#%%
-X_train, X_test, y_train, y_test = train_test_split(X_train,y_train,
-                                   test_size=0.25, 
-                                   shuffle=True)
-#Because the test data set doesn't contain target, we need to split our train data into train and test data.
 
 
 #%%
@@ -57,13 +56,24 @@ pca.fit(X_train)
 #%%
 print(pca.explained_variance_ratio_)
 print(pca.singular_values_)
+feat_labels = X_train.columns
+EVR = pca.explained_variance_ratio_
+indices = np.argsort(pca.explained_variance_ratio_)[::-1]
+for f in range(X_train.shape[1]):
+    print("%2d) %-*s %f" % (f + 1, 30,feat_labels[indices[f]], EVR[indices[f]]))
+
+SingularV = pca.singular_values_
+indices = np.argsort(pca.singular_values_)[::-1]
+for f in range(X_train.shape[1]):
+    print("%2d) %-*s %f" % (f + 1, 30,feat_labels[indices[f]], SingularV[indices[f]]))
 
 #%%
+#Another method for feature selection
 feat_labels = X_train.columns
 
 rf = RandomForestClassifier(n_estimators=1000, random_state=0, n_jobs=-1)
 
-rf.fit(X_train, y_train)
+rf.fit(X_train, y_train1)
 importances = rf.feature_importances_
 
 indices = np.argsort(rf.feature_importances_)[::-1]
@@ -71,71 +81,39 @@ indices = np.argsort(rf.feature_importances_)[::-1]
 for f in range(X_train.shape[1]):
     print("%2d) %-*s %f" % (f + 1, 30,feat_labels[indices[f]], importances[indices[f]]))
 
- #1) ps_car_13                      0.122827
- #2) ps_reg_03                      0.113170
- #3) ps_car_14                      0.075220
- #4) ps_ind_15                      0.066739
- #5) ps_ind_03                      0.063638
- #6) ps_reg_02                      0.059400
- #7) ps_car_11_cat                  0.052956
- #8) ps_car_15                      0.049726
- #9) ps_ind_01                      0.049659
-#10) ps_reg_01                      0.048482
-#11) ps_car_01_cat                  0.041342
-#12) ps_car_06_cat                  0.038869
-#13) ps_car_12                      0.035021
-#14) ps_car_09_cat                  0.024025
-#15) ps_ind_02_cat                  0.021459
-#16) ps_car_11                      0.018941
-#17) ps_ind_04_cat                  0.017020
-#18) ps_ind_05_cat                  0.013306
-#19) ps_ind_16_bin                  0.009065
-#20) ps_car_04_cat                  0.008925
-#21) ps_car_08_cat                  0.008196
-#22) ps_ind_08_bin                  0.007900
-#23) ps_car_02_cat                  0.007690
-#24) ps_ind_18_bin                  0.007552
-#25) ps_ind_07_bin                  0.007463
-#26) ps_ind_09_bin                  0.007367
-#27) ps_ind_06_bin                  0.006812
-#28) ps_car_07_cat                  0.006471
-#29) ps_ind_17_bin                  0.004591
-#30) ps_car_10_cat                  0.002101
-#31) ps_ind_14                      0.001816
-#32) ps_ind_12_bin                  0.001535
-#33) ps_ind_11_bin                  0.000373
-#34) ps_ind_13_bin                  0.000269
-#35) ps_ind_10_bin                  0.000076
+
+
+
 #%%
 knn_model1 = KNeighborsClassifier(n_neighbors=1) #default of distance metric is the Euclidean distance
 # fits model
-knn_model1.fit(X_train,y_train)
+knn_model1.fit(X_train,y_train1)
 y_pred1 = knn_model1.predict(X_test)
 
 
 #%%
 print(accuracy_score(y_test,y_pred1))
-# 0.9348646645437575
+#0.9330522962423876
 
 #%%
 fpr, tpr, threshold = roc_curve(y_test, y_pred1)
 print(auc(fpr, tpr))
-# 0.5035398151711877
+#auc score 0.5035854331654345
 
 
 
 #%%
 knn_model3 = KNeighborsClassifier(n_neighbors=3) #default of distance metric is the Euclidean distance
 # fits model
-knn_model3.fit(X_train,y_train)
+knn_model3.fit(X_train,y_train1)
 y_pred3 = knn_model3.predict(X_test)
 
 #%%
-accuracy_score(y_test,y_pred3)
-# running knn on training data once and then predict the test data set give an accuracy of 0.9610464477874163
+print(accuracy_score(y_test,y_pred3))
+# running knn on training data once and then predict the test data set give an accuracy of 0.9604877412444817
 fpr, tpr, threshold = roc_curve(y_test, y_pred3)
 print(auc(fpr, tpr))
-#auc score 0.5018147476426278
+#auc score 0.5021713752300643
 #%%
 
 fpr, tpr, threshold = roc_curve(y_test, y_pred3)
@@ -155,36 +133,24 @@ plt.show()
 # The AUC score for our prediction is only approximately 0.5
 # This is because there is a lot more zeros than ones in our dataset.
 
+
+
+
 #%%
 knn_model5 = KNeighborsClassifier(n_neighbors=5) #default of distance metric is the Euclidean distance
 # fits model
-knn_model5.fit(X_train,y_train)
+knn_model5.fit(X_train,y_train1)
 y_pred5 = knn_model5.predict(X_test)
 
 #%%
 print(accuracy_score(y_test,y_pred5))
-# 0.9638808059734271
+#0.9635429897494696
 
 #%%
 fpr, tpr, threshold = roc_curve(y_test, y_pred5)
 print(auc(fpr, tpr))
-#0.5004445529097213
+#0.5006453858781639
 
-#%%
-knn_model7 = KNeighborsClassifier(n_neighbors=7) #default of distance metric is the Euclidean distance
-# fits model
-knn_model7.fit(X_train,y_train)
-y_pred7 = knn_model7.predict(X_test)
-
-
-#%%
-print(accuracy_score(y_test,y_pred7))
-# 0.963565114746898
-
-#%%
-fpr, tpr, threshold = roc_curve(y_test, y_pred7)
-print(auc(fpr, tpr))
-#0.5000693590760316
 # increasing k results in a decrease of auc score, as we consider more neibours, there will be more zeros in our averaging calculation.
 
 #%%
@@ -194,25 +160,29 @@ cv_score = []
 knn_model = KNeighborsClassifier(n_neighbors=3)
 
 #%%
-scores = cross_val_score(knn_model, X_train, y_train, scoring='neg_mean_absolute_error',
+scores = cross_val_score(knn_model, X_train, y_train1, scoring='neg_mean_absolute_error',
                          cv=cv, n_jobs=-1)
 
 
-#-0.0658454
-#-0.0654451
-#-0.0655671
-#-0.0661047
-#-0.0658492
+#-0.0386551
+#-0.0386441
+#-0.0387928
+#-0.0385412
+#-0.0386326
+
+#This is code to implemetn k-fold cross validation.
 # negative mean absolute value is not very helpful like the 'accuracy', due to the same reason our data is biased, with a lot more zeros
 #%%
-scores1 = cross_val_score(knn_model, X_train, y_train, scoring='roc_auc',
+scores1 = cross_val_score(knn_model, X_train, y_train1, scoring='roc_auc',
                          cv=cv, n_jobs=-1)
     
 
-#0.504643
-#0.511891
-#0.511046
-#0.505346
+#0.509314
+#0.509181
+#0.514126
+#0.513897
+#0.513831
+
 
 
 
@@ -221,6 +191,7 @@ estimator_range = [2,4,6,8,10,12,14,16]
 
 models = []
 scores2 = []
+scores3 = []
 
 for n_estimators in estimator_range:
 
@@ -228,21 +199,34 @@ for n_estimators in estimator_range:
     clf = BaggingClassifier(n_estimators = n_estimators, random_state = 22)
 
     # Fit the model
-    clf.fit(X_train, y_train)
+    clf.fit(X_train, y_train1)
 
     # Append the model and score to their respective list
     models.append(clf)
     
-    scores2.append(accuracy_score(y_true = y_test, y_pred = clf.predict(X_test)))
+    fpr, tpr, threshold = roc_curve(y_test,clf.predict(X_test))
+    scores2.append(auc(fpr, tpr))
+    
+    scores3.append(accuracy_score(y_true = y_test, y_pred = clf.predict(X_test)))
 
-#0.960561472859705
-#0.9625013725705501
-#0.9632608616082866
-#0.9635811280699828
-#0.9637549870063321
-#0.9638739431206764
-#0.9640020497053549
-#0.9639745982943523
+#0.5007266093314129
+#0.5004023546893056
+#0.5002843206803768
+#0.5002615962594202
+#0.49993122886859737
+#0.4999775281327952
+#0.4999917740602407
+#0.500122445913075
+
+
+#0.9601719178035166
+#0.962368950436317
+#0.9631997034005946
+#0.9635086611145821
+#0.9635773183843571
+#0.9636665728350646
+#0.9636940357429746
+#0.9637695587397271
 
 #The default parameter for the base classifier in BaggingClassifier is the DicisionTreeClassifier
 #%%
@@ -263,7 +247,7 @@ plt.show()
 estimator_range = [2,4,6,8,10,12,14,16]
 
 models2 = []
-scores3 = []
+scores4 = []
 
 for n_estimators in estimator_range:
 
@@ -271,7 +255,7 @@ for n_estimators in estimator_range:
     clf = BaggingClassifier(n_estimators = n_estimators, random_state = 22)
 
     # Fit the model
-    clf.fit(X_train, y_train)
+    clf.fit(X_train, y_train1)
 
     # Append the model and score to their respective list
     models2.append(clf)

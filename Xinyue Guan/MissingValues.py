@@ -6,24 +6,25 @@ Created on Fri Dec  2 10:09:46 2022
 """
 #%%
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import seaborn as sns
 from sklearn.impute import SimpleImputer
 
-#%%#%%
-trainData = pd.read_csv("Data/train.csv")
+#%%
+train = pd.read_csv('Data/Newtrain.csv')
 
 #%%
 train_missing=dict()
 
-for i in trainData.columns:
-    train_missing.update({i:len(trainData[trainData[i] == -1])/trainData.shape[0]})
+for i in train.columns:
+    train_missing.update({i:len(train[train[i] == -1])/train.shape[0]})
     
 var_rand_miss = [key  for (key, value) in train_missing.items() if 0< value <0.05 ]
 
 #%%
 for i in var_rand_miss:
-    trainData = trainData[trainData[i] != -1]
+    trainData = train[train[i] != -1]
 
 trainData.drop(['ps_car_03_cat','ps_car_05_cat'], inplace=True, axis=1)
 
@@ -32,13 +33,19 @@ trainData.drop(['ps_car_03_cat','ps_car_05_cat'], inplace=True, axis=1)
 
 #%%
 #Now we left with two variables 'ps_car_14' and 'ps_reg_03' to deal with, they have the corresponding missing rate 7% and 18%
-imputer = SimpleImputer(strategy ='mean')
-imputer.fit(trainData['ps_car_03_cat'])
-trainData[Im_ps_car_03_cat]=imputer.transform(train_inputs[i])
+mean1 = np.mean(train['ps_car_14'])
+mean2 = np.mean(train['ps_reg_03'])
+train['Im_ps_car_14'] = 0
+train['Im_ps_reg_03'] = 0
+for i in range(train.shape[0]):
+    if train['ps_car_14'][i] == -1:
+        train['Im_ps_car_14'][i] = mean1
+    if train['ps_reg_03'][i] == -1:
+        train['Im_ps_reg_03'][i] = mean2
 
-#%%
-imputer.fit(trainData['ps_car_05_cat'])
-trainData[Im_ps_car_03_cat]=imputer.transform(train_inputs[i])
+                
+                
+
 
 
 

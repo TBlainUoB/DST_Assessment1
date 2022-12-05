@@ -12,9 +12,9 @@ import seaborn as sns
 from sklearn.impute import SimpleImputer
 
 #%%
-trainData = pd.read_csv("Data/train.csv")
-testData = pd.read_csv("Data/test.csv")
-
+trainData = pd.read_csv("Data/New_train.csv")
+testData = pd.read_csv("Data/New_test.csv")
+#Because our original test data has no labels, we split the train data set into new_train and new_test for our prject.
 #%%
 head = trainData.head()
 
