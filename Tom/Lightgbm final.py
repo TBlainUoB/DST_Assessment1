@@ -10,7 +10,8 @@ from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
 from sklearn.preprocessing import LabelEncoder, StandardScaler
 from sklearn.metrics import roc_auc_score
 
-def timer(start_time = None):
+
+def timer(start_time=None):
     if not start_time:
         start_time = datetime.now()
         return start_time
@@ -18,6 +19,7 @@ def timer(start_time = None):
         thour, temp_sec = divmod((datetime.now() - start_time).total_seconds(), 3600)
         tmin, tsec = divmod(temp_sec, 60)
         print('\n Time taken: %i hours %i minutes and %s seconds' % (thour, tmin, round(tsec, 2)))
+
 
 @jit
 def gini(y_true, y_prob):
@@ -27,7 +29,7 @@ def gini(y_true, y_prob):
     gini = 0
     delta = 0
     n = len(y_true)
-    for i in range(n-1, -1, -1):
+    for i in range(n - 1, -1, -1):
         y_i = y_true[i]
         ntrue += y_i
         gini += y_i * delta
@@ -35,25 +37,29 @@ def gini(y_true, y_prob):
     gini = 1 - 2 * gini / (ntrue * (n - ntrue))
     return gini
 
+
 def evalerror(preds, dtrain):
     labels = dtrain.get_label()
     return 'gini', gini(labels, preds), True
+
 
 def dropmissingcol(pdData):
     vars_to_drop = ['ps_car_03_cat', 'ps_car_05_cat']
     pdData.drop(vars_to_drop, inplace=True, axis=1)
     return pdData
 
+
 def missingvalues(pdData):
     mean_imp = SimpleImputer(missing_values=-1, strategy='mean')
     mode_imp = SimpleImputer(missing_values=-1, strategy='most_frequent')
-    features = ['ps_reg_03','ps_car_12','ps_car_14','ps_car_11']
+    features = ['ps_reg_03', 'ps_car_12', 'ps_car_14', 'ps_car_11']
     for i in features:
         if i == 'ps_car_11':
             pdData[i] = mode_imp.fit_transform(pdData[[i]]).ravel()
         else:
             pdData[i] = mean_imp.fit_transform(pdData[[i]]).ravel()
     return pdData
+
 
 def encodecat(train, test):
     cat_features = [col for col in train.columns if '_cat' in col]
@@ -68,11 +74,13 @@ def encodecat(train, test):
         test = test.drop([column], axis=1)
     return train, test
 
+
 def RescaleData(train, test):
     scaler = StandardScaler()
     scaler.fit_transform(train)
     scaler.fit_transform(test)
     return train, test
+
 
 def DropCalcCol(train, test):
     col_to_drop = train.columns[train.columns.str.startswith('ps_calc_')]
@@ -80,8 +88,16 @@ def DropCalcCol(train, test):
     test = test.drop(col_to_drop, axis=1)
     return train, test
 
-train = pd.read_csv("Dataset/train.csv", dtype = {'id':np.int32, 'target':np.int8})
-test = pd.read_csv("Dataset/test.csv", dtype={'id':np.int32})
+
+Kaggle = False
+if Kaggle == False:
+    train = pd.read_csv("new_train.csv")
+    test = pd.read_csv("new_test.csv")
+    target_test = test['target'].values
+    test = test.drop(['target'], axis=1)
+else:
+    train = pd.read_csv("Dataset/train.csv")
+    test = pd.read_csv("Dataset/test.csv")
 
 train = dropmissingcol(train)
 train = missingvalues(train)
@@ -103,7 +119,7 @@ X, X_test = RescaleData(X, X_test)
 
 '''
 Best hyperparameters from grid search:
-{'subsample': 0.4, 'num_leaves': 5, 'min_child_weight': 15, 'max_depth': 3, 'drop_rate': 0.3}
+{'subsample': 0.2, 'num_leaves': 15, 'min_child_weight': 150, 'max_depth': 3, 'drop_rate': 0.15}
 '''
 
 OPTIMIZE_ROUNDS = False
@@ -116,19 +132,19 @@ num_boost_round = 10000
 params = {"objective": "binary",
           "boosting_type": "gbdt",
           "learning_rate": LEARNING_RATE,
-          "num_leaves": 5,
           "max_bin": 256,
           "n_estimators": 600,
           "verbosity": 0,
           "feature_fraction": feature_fraction,
-          "max_depth": 3,
-          "drop_rate": 0.3,
           "is_unbalance": False,
           "max_drop": 50,
           "min_child_samples": 10,
-          "min_child_weight": 15,
           "min_split_gain": 0,
-          "subsample": 0.4
+          'subsample': 0.2,
+          'num_leaves': 15,
+          'min_child_weight': 150,
+          'max_depth': 3,
+          'drop_rate': 0.15
           }
 
 folds = 5
@@ -142,7 +158,7 @@ cv_train = np.zeros(len(y_train))
 cv_pred = np.zeros(len(X_test))
 
 start_time = timer(None)
-iterations = 1
+iterations = 3
 for seed in range(iterations):
     timer(start_time)
     params['seed'] = seed
@@ -162,3 +178,9 @@ for seed in range(iterations):
     cv_pred /= 5
 
 pd.DataFrame({'id': test_id, 'target': cv_pred / iterations}).to_csv('lgbm_pred5-with-encodingscaling.csv', index=False)
+
+if Kaggle == False:
+    test_score = gini(target_test, cv_pred / iterations)
+    print("Score on the test data")
+    print("Gini")
+    print(test_score)

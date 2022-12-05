@@ -69,16 +69,23 @@ def DropCalcCol(train, test):
     return train, test
 
 
-# read files from folder
-train = pd.read_csv("Dataset/train.csv")
-#test = pd.read_csv("Dataset/test.csv")
 
+Kaggle = False
+if Kaggle == False:
+    train = pd.read_csv("new_train.csv")
+    test = pd.read_csv("new_test.csv")
+    target_test = test['target'].values
+    test = test.drop(['target'], axis=1)
+else:
+    train = pd.read_csv("Dataset/train.csv")
+    test = pd.read_csv("Dataset/test.csv")
+'''
 train, test = train_test_split(train, test_size=0.25, random_state=42)
 train = pd.DataFrame(train)
 test = pd.DataFrame(test)
 train.to_csv("new_train.csv", index=False)
 test.to_csv("new_test.csv", index=False)
-
+'''
 train = dropmissingcol(train)
 train = missingvalues(train)
 test = dropmissingcol(test)
@@ -88,9 +95,7 @@ y_train = train['target'].values
 train_id = train['id'].values
 X = train.drop(['target', 'id'], axis=1)
 
-target_test = test['target'].values
-test = test.drop(['target'], axis=1)
-test_id = test['id']
+test_id = test['id'].values
 X_test = test.drop(['id'], axis=1)
 
 X, X_test = DropCalcCol(X, X_test)
@@ -117,7 +122,7 @@ for tr_id, te_id in kf.split(X, y_train):
     # evaluates with roc_auc_score
 
     score = gini(yvl, pred_test)
-    print('gini', score)
+    print('k fold gini', score)
     cv_score.append(score)
     # predict for test set
     pred_test_full += lr.predict_proba(X_test)[:, 1]
@@ -125,3 +130,9 @@ for tr_id, te_id in kf.split(X, y_train):
 pred_test_full /= 5
 
 pd.DataFrame({'id': test_id, 'target': pred_test_full}).to_csv('baseline_log_regression1.csv', index=False)
+
+if Kaggle == False:
+    test_score = gini(target_test,pred_test_full)
+    print("Score on the test data")
+    print("Gini")
+    print(test_score)
