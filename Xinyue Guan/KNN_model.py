@@ -31,9 +31,7 @@ y_test = test['target'].values
 
 X_train = pd.DataFrame(X_train)
 X_test = pd.DataFrame(X_test)
-y_train = pd.DataFrame(y_train)
-y_train1=y_train.to_numpy()
-y_train1=y_train1.ravel()
+y_train1=y_train.ravel()
 
 # store id and terget separately.
 
@@ -84,96 +82,30 @@ for f in range(X_train.shape[1]):
 
 
 
-#%%
-knn_model1 = KNeighborsClassifier(n_neighbors=1) #default of distance metric is the Euclidean distance
-# fits model
-knn_model1.fit(X_train,y_train1)
-y_pred1 = knn_model1.predict(X_test)
-
-
-#%%
-print(accuracy_score(y_test,y_pred1))
-#0.9330522962423876
-
-#%%
-fpr, tpr, threshold = roc_curve(y_test, y_pred1)
-print(auc(fpr, tpr))
-#auc score 0.5035854331654345
-
-
-
-#%%
-knn_model3 = KNeighborsClassifier(n_neighbors=3) #default of distance metric is the Euclidean distance
-# fits model
-knn_model3.fit(X_train,y_train1)
-y_pred3 = knn_model3.predict(X_test)
-
-#%%
-print(accuracy_score(y_test,y_pred3))
-# running knn on training data once and then predict the test data set give an accuracy of 0.9604877412444817
-fpr, tpr, threshold = roc_curve(y_test, y_pred3)
-print(auc(fpr, tpr))
-#auc score 0.5021713752300643
-#%%
-
-fpr, tpr, threshold = roc_curve(y_test, y_pred3)
-roc_auc = auc(fpr, tpr)
-
-plt.title('Receiver Operating Characteristic')
-plt.plot(fpr, tpr, 'b', label = 'AUC = %0.2f' % roc_auc)
-plt.legend(loc = 'lower right')
-plt.plot([0, 1], [0, 1],'r--')
-plt.xlim([0, 1])
-plt.ylim([0, 1])
-plt.ylabel('True Positive Rate')
-plt.xlabel('False Positive Rate')
-plt.title('ROC Curve of kNN')
-plt.show()
-
-# The AUC score for our prediction is only approximately 0.5
-# This is because there is a lot more zeros than ones in our dataset.
-
-
-
-
-#%%
-knn_model5 = KNeighborsClassifier(n_neighbors=5) #default of distance metric is the Euclidean distance
-# fits model
-knn_model5.fit(X_train,y_train1)
-y_pred5 = knn_model5.predict(X_test)
-
-#%%
-print(accuracy_score(y_test,y_pred5))
-#0.9635429897494696
-
-#%%
-fpr, tpr, threshold = roc_curve(y_test, y_pred5)
-print(auc(fpr, tpr))
-#0.5006453858781639
-
-# increasing k results in a decrease of auc score, as we consider more neibours, there will be more zeros in our averaging calculation.
 
 #%%
 cv = StratifiedKFold(n_splits=5, random_state=0, shuffle=True)
 pred_test_full = np.zeros(ceil(4*len(id_train)/5))
 cv_score = []
-knn_model = KNeighborsClassifier(n_neighbors=3)
+knn_model1 = KNeighborsClassifier(n_neighbors=1)
+knn_model3 = KNeighborsClassifier(n_neighbors=3)
+knn_model5 = KNeighborsClassifier(n_neighbors=5)
 
 #%%
-scores = cross_val_score(knn_model, X_train, y_train1, scoring='neg_mean_absolute_error',
+scores1 = cross_val_score(knn_model1, X_train, y_train1, scoring='roc_auc',
                          cv=cv, n_jobs=-1)
+    
+#0.502806
+#0.50558
+#0.50661
+#0.509524
+#0.504529
 
-
-#-0.0386551
-#-0.0386441
-#-0.0387928
-#-0.0385412
-#-0.0386326
 
 #This is code to implemetn k-fold cross validation.
-# negative mean absolute value is not very helpful like the 'accuracy', due to the same reason our data is biased, with a lot more zeros
+
 #%%
-scores1 = cross_val_score(knn_model, X_train, y_train1, scoring='roc_auc',
+scores3 = cross_val_score(knn_model3, X_train, y_train1, scoring='roc_auc',
                          cv=cv, n_jobs=-1)
     
 
@@ -182,6 +114,22 @@ scores1 = cross_val_score(knn_model, X_train, y_train1, scoring='roc_auc',
 #0.514126
 #0.513897
 #0.513831
+
+
+
+
+#%%
+scores5 = cross_val_score(knn_model5, X_train, y_train1, scoring='roc_auc',
+                         cv=cv, n_jobs=-1)
+
+
+#0.517008
+#0.514352
+#0.520529
+#0.516512
+#0.518471
+
+
 
 
 

@@ -8,8 +8,8 @@ Created on Fri Dec  2 10:09:46 2022
 import pandas as pd
 import numpy as np
 import math
-from sklearn.neighbors import KNeighborsClassifier
-from sklearn.metrics import  roc_curve,auc, accuracy_score
+from sklearn.neighbors import KNeighborsRegressor
+from sklearn.linear_model import LinearRegression
 #%%
 train = pd.read_csv('Data/train.csv')
 
@@ -40,7 +40,7 @@ trainData = trainData[trainData['ps_reg_03'] != -1]
 #Remove all the missing value, we want create our random missing and test the performance of each imputation method.
 
 #%%
-# Split Data into Training and Testing in R 
+# Split Data into Training and Testing datasets
 train_size = math.floor(0.85*trainData.shape[0])
 trainData = trainData.sample(frac = 1)
 train = trainData.iloc[:train_size]
@@ -51,7 +51,9 @@ test = trainData.iloc[train_size:]
 
 #%%                
 error_mean_imp_14 = np.sum((np.mean(train['ps_car_14'])-test['ps_car_14'])**2)
+#99.74392558930454
 error_mean_imp_03 = np.sum((np.mean(train['ps_reg_03'])-test['ps_reg_03'])**2)
+#6157.369879825044
 #the mean square error calculated on test data set if the mean imputation is performed/
 
 #%%
@@ -66,19 +68,70 @@ y_test03 = test['ps_reg_03'].values
 
 X_train = pd.DataFrame(X_train)
 X_test = pd.DataFrame(X_test)
-#%%
-y_train = pd.DataFrame(y_train)
-y_train1=y_train.to_numpy()
-y_train1=y_train1.ravel()
+
 
 #%%
-knn_model3_14 = KNeighborsClassifier(n_neighbors=3)
+knn_model3_14 = KNeighborsRegressor(n_neighbors=3)
 knn_model3_14.fit(X_train,y_train14)
 y_pred3_14 = knn_model3_14.predict(X_test)
-print(accuracy_score(y_test14,y_pred3_14))
-# 
-fpr, tpr, threshold = roc_curve(y_test14, y_pred3_14)
-print(auc(fpr, tpr))
+
+error_kNN3_imp_14 = np.sum((y_pred3_14-test['ps_car_14'])**2)
+#52.45532851843846
+
+
+#%%
+knn_model3_03 = KNeighborsRegressor(n_neighbors=3)
+knn_model3_03.fit(X_train,y_train03)
+y_pred3_03 = knn_model3_03.predict(X_test)
+
+error_kNN3_imp_03 = np.sum((y_pred3_03-test['ps_reg_03'])**2)
+#5089.316542287195
+
+#we can see that the kNN model with k=3 improves the performance of imputation quite significantly.
+
+
+
+#%%
+knn_model5_14 = KNeighborsRegressor(n_neighbors=5)
+knn_model5_14.fit(X_train,y_train14)
+y_pred5_14 = knn_model5_14.predict(X_test)
+
+error_kNN5_imp_14 = np.sum((y_pred5_14-test['ps_car_14'])**2)
+#47.99279607382105
+
+
+#%%
+knn_model5_03 = KNeighborsRegressor(n_neighbors=5)
+knn_model5_03.fit(X_train,y_train03)
+y_pred5_03 = knn_model5_03.predict(X_test)
+
+error_kNN5_imp_03 = np.sum((y_pred5_03-test['ps_reg_03'])**2)
+#4614.632587446913
+
+
+
+
+#%%
+l_model14 = LinearRegression()
+l_model14.fit(X_train,y_train14)
+y_l_pred14 = l_model14.predict(X_test)
+error_multil_imp_14 = np.sum((y_l_pred14-test['ps_car_14'])**2)
+#52.24618886814621
+
+
+#%%
+l_model03 = LinearRegression()
+l_model03.fit(X_train,y_train03)
+y_l_pred03 = l_model03.predict(X_test)
+error_multil_imp_03 = np.sum((y_l_pred03-test['ps_reg_03'])**2)
+#2473.9093364593655
+
+
+
+
+
+
+
 
 
 
