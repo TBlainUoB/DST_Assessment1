@@ -243,84 +243,27 @@ plt.tick_params(labelsize = 16)
 plt.show()
 
 
-#%%
-estimator_range = [2,4,6,8,10,12,14,16]
-
-models2 = []
-scores4 = []
-
-for n_estimators in estimator_range:
-
-    # Create bagging classifier
-    clf = BaggingClassifier(n_estimators = n_estimators, random_state = 22)
-
-    # Fit the model
-    clf.fit(X_train, y_train1)
-
-    # Append the model and score to their respective list
-    models2.append(clf)
-    y_pred = clf.predict(X_test)
-    fpr, tpr, threshold = roc_curve(y_test,y_pred)
-    scores3.append(auc(fpr, tpr))
-
-#0.501898851810379
-#0.5000556758805177
-#0.5003469887545138
-#0.5003145043042855
-#0.5002179720316834
-#0.5001572521521428
-#0.5000716247861234
-#0.5000858576355398
-
-#%%
-#knn_model1 = KNeighborsClassifier(n_neighbors=1)
-estimator_range = [10,12,14,16]
-models2 = []
-scores3 = []
-
-for n_estimators in estimator_range:
-
-    # Create bagging classifier
-    clf = BaggingClassifier(base_estimator=knn_model1, n_estimators = n_estimators, random_state = 22)
-
-    # Fit the model
-    clf.fit(X_train, y_train)
-
-    # Append the model and score to their respective list
-    models2.append(clf)
-    
-    y_pred = clf.predict(X_test)
-    
-    
-    
-#%%
-    n=len(y_pred)
-    for i in range(0,n):
-        if y_pred[i]>0.5:
-            y_pred[i]=1
-        else:
-            y_pred[i]=0
-
-    fpr, tpr, threshold = roc_curve(y_test, y_pred)
-
-    scores3.append(auc(fpr, tpr))
-
-
 
 #%%
 knn_model1 = KNeighborsClassifier(n_neighbors=1)
 clf = BaggingClassifier(base_estimator=knn_model1, n_estimators = 4, random_state = 22)
 y_train=np.ravel(y_train)
 clf.fit(X_train, y_train)
+fpr, tpr, threshold = roc_curve(y_test,clf.predict(X_test))
+print(auc(fpr, tpr))
+
+
+#0.5052903984913617
 
 
 #%%
-y_pred = clf.predict(X_test)
+knn_model1 = KNeighborsClassifier(n_neighbors=1)
+clf = BaggingClassifier(base_estimator=knn_model1, n_estimators = 8, random_state = 22)
+y_train=np.ravel(y_train)
+clf.fit(X_train, y_train)
+fpr, tpr, threshold = roc_curve(y_test,clf.predict(X_test))
+print(auc(fpr, tpr))
+# 0.5047075782348553
 
-#This code doesn't end somehow
-
-
-
-
-
+#Bagging doesn't improve the performance of the kNN model
 
