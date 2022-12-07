@@ -21,8 +21,11 @@ library(tidymodels)
 library(pROC)
 ```
 
+In this section we create a baseline logistic regression model using the refined data, and then aim to reduce the affect of irrelevant variables to try and create new, improved regression models using LASSO and ridge regression. 
+\\ \\
+We first import the normalised Gini function as this will be used later in the project for model validation and choosing parameters. This is a function designed to replicate the code used upon submission of the actual Kaggle competition.
+
 ```{r}
-#Creating gini function (Used later for model validation)
 normalizedGini <- function(aa, pp) {
     Gini <- function(a, p) {
         if (length(a) !=  length(p)) stop("Actual and Predicted need to be equal lengths!")
@@ -38,18 +41,21 @@ normalizedGini <- function(aa, pp) {
     Gini(aa,pp) / Gini(aa,aa)
 }
 ```
+We begin by loading in our training data, and then splitting once again into a training and validation ('testing') dataset which we will use later for comparing different regression models. 
 
 ```{r}
-#Loading in refined training data
+#LOADING IN DATA
 train<-read.csv("train_new.csv")
 #Delete X and id column
 train<-train[,-c(1,2)]
-#Then split into training and validation set
+#Then split into training set (70%) and validation set (30%)
 train_index <- sample(c (TRUE, FALSE), nrow (train), replace=TRUE, prob=c (0.7,0.3))
 # split the data according to the train index
 training <- as.data.frame(train[train_index, ])
 testing <- as.data.frame(train[!train_index, ])
 ```
+
+Most work in refining the data has already been done, however to make our regression work well down the line, we want our matrix of covariates to be fully invertible. To achieve this we find all linear combinations in the variables and remove these columns.
 
 ```{r}
 #REMOVING LINEAR COMBINATIONS
@@ -62,16 +68,25 @@ removed_columns<-names(training)[-d]
 training <- training[, d]
 training<-as.data.frame(training)
 ```
+For our first baseline model we use the most basic implementation of logistic regression as done here.
 
 ```{r}
 #Building baseline logistic regression model
 logmod <- glm(target ~ . , data = training, family = binomial(link = 'logit'))
+#Building a list of p-values for each co-efficient
+p.values<-summary(logmod)$coefficients[,4]
+#Histogram of p-values with a red dotted line at p=0.05
+hist(p.values)
+abline(v=0.05,col='red',lwd=2,lty=2)
 ```
 
+One immediate problem here is that despite our many encoded variables, not very many seem to actually contribute to our prediction. A lot of the p-values are way above the standard significance level of 0.05 as shown here by the red dotted line. This leads us to consider a LASSO dimensionality reduction: removing all variables which do not contribute enough (say a p-value of >0.05) and re-running the logistic model.
+
 ```{r}
-#Building LASSO model by hand
+#BUILDING LASSO MODEL
 #First we group all variables with p-values < 0.05
 formula.names<-logmod %>% tidy() %>% filter(p.value < 0.05) %>% pull(term)
+#Remove intercept
 formula.names<-formula.names[-1]
 #Then create a formula containing only these variables
 model.formula<-paste("target ~ ",formula.names[1])
@@ -79,12 +94,33 @@ for (i in 2:(length(formula.names))){
   model.formula<-paste(model.formula," + ",formula.names[i])
 }
 logmod.lasso <- glm(model.formula, data = training, family = binomial(link = 'logit'))
+
+p.values.lasso<-summary(logmod.lasso)$coefficients[,4]
+hist(p.values.lasso)
+abline(v=0.05,col='red',lwd=2,lty=2)
 ```
+
+Immediately we can see that not now the vast majority of variables are significant, leading to a potentially more accurate model with less features and thus less computation needed. However one problem is that by removing a lot of the data completely, we now generate different parameter estimates due to the affect of the irrelevant data being gone. This leads to some instances where variables that were considered significant enough to be kept in the LASSO model are now revealed to have a much higher p-value, now that they exist only amongst other 'significant' variables. This can be seen in the plot below.
+
+```{r}
+Ps<-data.frame(unlassoed=p.values[formula.names],lassoed=p.values.lasso[formula.names])
+test<-as.matrix(Ps)
+n<-dim(Ps)[1]
+plot(seq(1,n),Ps[,2],col='blue',pch=16,xlab='Co-efficients kept in LASSO model',ylab='p-values')
+points(seq(1,n),Ps[,1],col='red',pch=16)
+for (i in 1:n){
+  segments(x0=i,y0=Ps[i,1],x1=i,y1=Ps[i,2])
+}
+abline(h=0.05,col='black',lty=2)
+legend("topleft",pch=c(16,16),col=c('red','blue'),cex=1.2,legend=c("baseline model","lasso model"))
+```
+
+We can improve on this however by using pre-packaged methods of LASSO and ridge regression using GLMNET, which will allow us to calibrate how harsh to be when reducing the impact of certain variables, instead of making such a binary decision as setting a co-efficient to exactly 0 for a small p-value.
 
 ```{r}
 #Building LASSO and ridge models using the glmnet package
 library(glmnet)
-#Convert our training data intot two response and covariate matrices
+#Convert our training data into two response and covariate matrices y and X
 X<-as.matrix(training[,-1])
 y<-as.matrix(training[,1])
 #Building standard ridge and LASSO fits with very small lambda
@@ -163,34 +199,3 @@ for (i in 1:6){
 validation
 ```
 
-```{r}
-train_bad<-read.csv('new_train.csv')
-train_bad<-train_bad[-c(1,2)]
-test_bad<-read.csv('new_test.csv')
-bad.actual<-test_bad$target
-test_bad<-test_bad[-2]
-logmod.bad<-glm(target~.-id,data=train_bad,family = binomial(link = 'logit'))
-preds.bad<-predict(logmod.bad,newdata=test_bad,type='response')
-roc.area(bad.actual,preds.bad)
-normalizedGini(bad.actual,preds.bad)
-```
-
-```{r}
-#PCA?
-prin_comp <- prcomp(training[-1], scale. = T)
-std_dev <- prin_comp$sdev
-pr_var <- std_dev^2
-prop_varex <- pr_var/sum(pr_var)
-plot(prop_varex, xlab = "Principal Component",
-         ylab = "Proportion of Variance Explained",
-         type = "b")
-         
-#cumulative plot         
-   plot(cumsum(prop_varex), xlab = "Principal Component",
-        ylab = "Cumulative Proportion of Variance Explained",type="b")
-   
-training_pca<-data.frame(target=training$target,prin_comp$x)
-logmod.pca<-glm(target~.,data=training_pca,family = binomial(link = 'logit'))
-pca.testing<-prcomp(testing,scale.=T)
-preds.logmod.pca<-predict(logmod.pca,newdata=pca.testing,type='response')
-```
