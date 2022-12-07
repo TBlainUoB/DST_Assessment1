@@ -65,7 +65,7 @@ knn_model1 = KNeighborsClassifier(n_neighbors=1)
 knn_model1.fit(X_train_under, y_train_under)
 fpr, tpr, threshold = roc_curve(y_test,knn_model1.predict(X_test))
 print(auc(fpr, tpr))
-
+#0.5243804977790577
 
 
 
@@ -74,24 +74,60 @@ knn_model3 = KNeighborsClassifier(n_neighbors=3)
 knn_model3.fit(X_train_under, y_train_under)
 fpr, tpr, threshold = roc_curve(y_test,knn_model3.predict(X_test))
 print(auc(fpr, tpr))
+#0.5375015397106558
 
 #%%
 knn_model5 = KNeighborsClassifier(n_neighbors=5)
 knn_model5.fit(X_train_under, y_train_under)
 fpr, tpr, threshold = roc_curve(y_test,knn_model5.predict(X_test))
 print(auc(fpr, tpr))
+#0.5357163030347191
+
+#we see that under sampling does improved the performance of kNN, but not a lot
+
+#%%
+df_class_1_over = df_class_1.sample(count_class_0, replace=True)
+train_over = pd.concat([df_class_0, df_class_1_over], axis=0)
+
+print('Random over-sampling:')
+print(train_over.target.value_counts())
+
+train_over.target.value_counts().plot(kind='bar', title='Count (target)');
 
 
+#%%
+y_train_over = train_over['target'].values
+X_train_over = train_over.drop(['target', 'id'], axis=1)
+
+X_test = test.drop(['target','id'], axis=1)
+y_test = test['target'].values
+
+X_train_over = pd.DataFrame(X_train_over)
+X_test = pd.DataFrame(X_test)
+y_train_over=y_train_over.ravel()
 
 
+#%%
+scaler = StandardScaler()
+scaled_train0= scaler.fit_transform(X_train_over)
+X_train_over = pd.DataFrame(scaled_train0, columns=X_train_over.columns)
+scaled_test0 = scaler.fit_transform(X_test)
+X_test = pd.DataFrame(scaled_test0, columns=X_test.columns)
 
 
+#%%
+knn_model1 = KNeighborsClassifier(n_neighbors=1)
+knn_model1.fit(X_train_over, y_train_over)
+fpr, tpr, threshold = roc_curve(y_test,knn_model1.predict(X_test))
+print(auc(fpr, tpr))
+#0.5078777014477487
 
 
-
-
-
-
+#%%
+knn_model1 = KNeighborsClassifier(n_neighbors=1)
+knn_model1.fit(X_train_over, y_train_over)
+fpr, tpr, threshold = roc_curve(y_test,knn_model1.predict(X_test))
+print(auc(fpr, tpr))
 
 
 

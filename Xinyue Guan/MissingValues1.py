@@ -1,9 +1,10 @@
 # -*- coding: utf-8 -*-
 """
-Created on Fri Dec  2 10:09:46 2022
+Created on Wed Dec  7 14:45:44 2022
 
 @author: nd19620
 """
+
 #%%
 import pandas as pd
 import numpy as np
@@ -38,6 +39,8 @@ trainData.drop(col_to_drop, inplace = True, axis=1)
 #%%
 trainData = trainData[trainData['ps_car_14'] != -1]
 trainData = trainData[trainData['ps_reg_03'] != -1]
+trainData = trainData[trainData['ps_car_12'] != -1]
+trainData = trainData[trainData['ps_car_11'] != -1]
 #Remove all the missing value, we want create our random missing and test the performance of each imputation method.
 
 #%%
@@ -52,20 +55,27 @@ test = trainData.iloc[train_size:]
 
 #%%                
 error_mean_imp_14 = np.sum((np.mean(train['ps_car_14'])-test['ps_car_14'])**2)
-#99.74392558930454
+#101.94304336293995
 error_mean_imp_03 = np.sum((np.mean(train['ps_reg_03'])-test['ps_reg_03'])**2)
-#6157.369879825044
+#6026.311279406008
+error_mean_imp_12 = np.sum((np.mean(train['ps_car_12'])-test['ps_car_12'])**2)
+#163.7038234532793
+error_mean_imp_11 = np.sum((np.mean(train['ps_car_11'])-test['ps_car_11'])**2)
+#34262.28954026922
 #the mean square error calculated on test data set if the mean imputation is performed/
 
 #%%
 y_train14 = train['ps_car_14'].values
-y_train14 = y_train14.ravel()
 y_train03 = train['ps_reg_03'].values
-X_train = train.drop(['target', 'id','ps_car_14','ps_reg_03'], axis=1)
+y_train11 = train['ps_car_11'].values
+y_train12 = train['ps_car_12'].values
+X_train = train.drop(['target', 'id','ps_car_14','ps_reg_03','ps_car_11','ps_car_12'], axis=1)
 
-X_test = test.drop(['target','id','ps_car_14','ps_reg_03'], axis=1)
+X_test = test.drop(['target','id','ps_car_14','ps_reg_03','ps_car_11','ps_car_12'], axis=1)
 y_test14 = test['ps_car_14'].values
 y_test03 = test['ps_reg_03'].values
+y_test11 = test['ps_car_11'].values
+y_test12 = test['ps_car_12'].values
 
 X_train0 = pd.DataFrame(X_train)
 X_test0 = pd.DataFrame(X_test)
@@ -83,7 +93,7 @@ knn_model3_14.fit(X_train,y_train14)
 y_pred3_14 = knn_model3_14.predict(X_test)
 
 error_kNN3_imp_14 = np.sum((y_pred3_14-test['ps_car_14'])**2)
-#56.8354887070335
+#66.35899924476847
 
 
 #%%
@@ -92,7 +102,24 @@ knn_model3_03.fit(X_train,y_train03)
 y_pred3_03 = knn_model3_03.predict(X_test)
 
 error_kNN3_imp_03 = np.sum((y_pred3_03-test['ps_reg_03'])**2)
-#3513.5810431864893
+#3393.3535075889054
+
+
+#%%
+knn_model3_11 = KNeighborsRegressor(n_neighbors=3)
+knn_model3_11.fit(X_train,y_train11)
+y_pred3_11 = knn_model3_11.predict(X_test)
+
+error_kNN3_imp_11 = np.sum((y_pred3_11-test['ps_car_11'])**2)
+#28793.333333333336
+
+#%%
+knn_model3_12 = KNeighborsRegressor(n_neighbors=3)
+knn_model3_12.fit(X_train,y_train12)
+y_pred3_12 = knn_model3_12.predict(X_test)
+
+error_kNN3_imp_12 = np.sum((y_pred3_12-test['ps_car_12'])**2)
+#66.99155171652144
 
 #we can see that the kNN model with k=3 improves the performance of imputation quite significantly.
 
@@ -104,7 +131,7 @@ knn_model5_14.fit(X_train,y_train14)
 y_pred5_14 = knn_model5_14.predict(X_test)
 
 error_kNN5_imp_14 = np.sum((y_pred5_14-test['ps_car_14'])**2)
-#51.939626752115494
+#61.05071618279441
 
 
 #%%
@@ -113,10 +140,23 @@ knn_model5_03.fit(X_train,y_train03)
 y_pred5_03 = knn_model5_03.predict(X_test)
 
 error_kNN5_imp_03 = np.sum((y_pred5_03-test['ps_reg_03'])**2)
-#3176.843399124529
+#3056.7010707335926
 
+#%%
+knn_model5_11 = KNeighborsRegressor(n_neighbors=5)
+knn_model5_11.fit(X_train,y_train11)
+y_pred5_11 = knn_model5_11.predict(X_test)
 
+error_kNN5_imp_11 = np.sum((y_pred5_11-test['ps_car_11'])**2)
+# 26847.679999999993
 
+#%%
+knn_model5_12 = KNeighborsRegressor(n_neighbors=5)
+knn_model5_12.fit(X_train,y_train12)
+y_pred5_12 = knn_model5_12.predict(X_test)
+
+error_kNN5_imp_12 = np.sum((y_pred5_12-test['ps_car_12'])**2)
+# 61.77576625834771
 
 
 #%%
@@ -124,32 +164,62 @@ l_model14 = LinearRegression()
 l_model14.fit(X_train0,y_train14)
 y_l_pred14 = l_model14.predict(X_test0)
 error_multil_imp_14 = np.sum((y_l_pred14-test['ps_car_14'])**2)
-#52.24618886814621
+#59.515199203935005
 
-
+#For linear regression, we need to use the dataset before standardizing
 #%%
 l_model03 = LinearRegression()
 l_model03.fit(X_train0,y_train03)
 y_l_pred03 = l_model03.predict(X_test0)
 error_multil_imp_03 = np.sum((y_l_pred03-test['ps_reg_03'])**2)
-#2473.9093364593655
-
-#For linear regression, we need to use the dataset before standardizing
+#2442.269588375088
 
 
+#%%
+l_model11 = LinearRegression()
+l_model11.fit(X_train0,y_train11)
+y_l_pred11 = l_model11.predict(X_test0)
+error_multil_imp_11 = np.sum((y_l_pred11-test['ps_car_11'])**2)
+#31442.30929505477
+
+
+#%%
+l_model12 = LinearRegression()
+l_model12.fit(X_train0,y_train12)
+y_l_pred12 = l_model12.predict(X_test0)
+error_multil_imp_12 = np.sum((y_l_pred12-test['ps_car_12'])**2)
+#61.331184640364285
+
+#linear regression achieves similar result to kNN model with k=5, except for'ps_car_11', and it is a lot faster than kNN.
+#therefore we have decided to inear regression for imputation of all four variables.
+
+#%%
+
+#need to drop the high missing rate variables and 'calc_' variables before this
+def missingvalues(pdData):
+    features = ['ps_reg_03', 'ps_car_12', 'ps_car_14', 'ps_car_11']
+    pdData0 = pdData.drop('id','target',axis=1)
+    pdData1 = pdData
+    pdData1 = pdData1[pdData1['ps_car_14'] != -1]
+    pdData1 = pdData1[pdData1['ps_reg_03'] != -1]
+    pdData1 = pdData1[pdData1['ps_car_12'] != -1]
+    pdData1 = pdData1[pdData1['ps_car_11'] != -1]
+    X_train = pdData1.drop(['target', 'id','ps_car_14','ps_reg_03','ps_car_11','ps_car_12'], axis=1)
+    
+    pdData0 = pdData.drop(['target', 'id','ps_car_14','ps_reg_03','ps_car_11','ps_car_12'], axis=1)
+    for i in features:
+            l_model = LinearRegression()
+            l_model.fit(X_train,pdData1[i].values)
+            for j in range(pdData.shape[0]):
+                if pdData[i].loc[j] == -1:
+                    pdData[i].loc[j] = l_model.predict(pdData0.loc[j])
+    return pdData
 
 
 
 
-
-
-
-
-
-
-
-
-
+#%%
+trainData.loc[1]
 
 
 
