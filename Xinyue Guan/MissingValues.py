@@ -9,6 +9,7 @@ import pandas as pd
 import numpy as np
 import math
 from sklearn.neighbors import KNeighborsRegressor
+from sklearn.preprocessing import StandardScaler
 from sklearn.linear_model import LinearRegression
 #%%
 train = pd.read_csv('Data/train.csv')
@@ -66,9 +67,15 @@ X_test = test.drop(['target','id','ps_car_14','ps_reg_03'], axis=1)
 y_test14 = test['ps_car_14'].values
 y_test03 = test['ps_reg_03'].values
 
-X_train = pd.DataFrame(X_train)
-X_test = pd.DataFrame(X_test)
+X_train0 = pd.DataFrame(X_train)
+X_test0 = pd.DataFrame(X_test)
 
+#%%
+scaler = StandardScaler()
+scaled_train0= scaler.fit_transform(X_train0)
+X_train = pd.DataFrame(scaled_train0, columns=X_train.columns)
+scaled_test0 = scaler.fit_transform(X_test0)
+X_test = pd.DataFrame(scaled_test0, columns=X_test.columns)
 
 #%%
 knn_model3_14 = KNeighborsRegressor(n_neighbors=3)
@@ -76,7 +83,7 @@ knn_model3_14.fit(X_train,y_train14)
 y_pred3_14 = knn_model3_14.predict(X_test)
 
 error_kNN3_imp_14 = np.sum((y_pred3_14-test['ps_car_14'])**2)
-#52.45532851843846
+#56.8354887070335
 
 
 #%%
@@ -85,7 +92,7 @@ knn_model3_03.fit(X_train,y_train03)
 y_pred3_03 = knn_model3_03.predict(X_test)
 
 error_kNN3_imp_03 = np.sum((y_pred3_03-test['ps_reg_03'])**2)
-#5089.316542287195
+#3513.5810431864893
 
 #we can see that the kNN model with k=3 improves the performance of imputation quite significantly.
 
@@ -97,7 +104,7 @@ knn_model5_14.fit(X_train,y_train14)
 y_pred5_14 = knn_model5_14.predict(X_test)
 
 error_kNN5_imp_14 = np.sum((y_pred5_14-test['ps_car_14'])**2)
-#47.99279607382105
+#51.939626752115494
 
 
 #%%
@@ -106,25 +113,27 @@ knn_model5_03.fit(X_train,y_train03)
 y_pred5_03 = knn_model5_03.predict(X_test)
 
 error_kNN5_imp_03 = np.sum((y_pred5_03-test['ps_reg_03'])**2)
-#4614.632587446913
+#3176.843399124529
 
 
 
 
 #%%
 l_model14 = LinearRegression()
-l_model14.fit(X_train,y_train14)
-y_l_pred14 = l_model14.predict(X_test)
+l_model14.fit(X_train0,y_train14)
+y_l_pred14 = l_model14.predict(X_test0)
 error_multil_imp_14 = np.sum((y_l_pred14-test['ps_car_14'])**2)
 #52.24618886814621
 
 
 #%%
 l_model03 = LinearRegression()
-l_model03.fit(X_train,y_train03)
-y_l_pred03 = l_model03.predict(X_test)
+l_model03.fit(X_train0,y_train03)
+y_l_pred03 = l_model03.predict(X_test0)
 error_multil_imp_03 = np.sum((y_l_pred03-test['ps_reg_03'])**2)
 #2473.9093364593655
+
+#For linear regression, we need to use the dataset before standardizing
 
 
 

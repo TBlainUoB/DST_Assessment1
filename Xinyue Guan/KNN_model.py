@@ -213,5 +213,5 @@ fpr, tpr, threshold = roc_curve(y_test,clf.predict(X_test))
 print(auc(fpr, tpr))
 # 0.5047075782348553
 
-#Bagging doesn't improve the performance of the kNN model
+#Bagging only make sense with k=1 because otherwise kNN is too stable, but it doesn't improve the performance of the kNN model much.
 
