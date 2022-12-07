@@ -103,14 +103,18 @@ abline(v=0.05,col='red',lwd=2,lty=2)
 Immediately we can see that not now the vast majority of variables are significant, leading to a potentially more accurate model with less features and thus less computation needed. However one problem is that by removing a lot of the data completely, we now generate different parameter estimates due to the affect of the irrelevant data being gone. This leads to some instances where variables that were considered significant enough to be kept in the LASSO model are now revealed to have a much higher p-value, now that they exist only amongst other 'significant' variables. This can be seen in the plot below.
 
 ```{r}
+#PLOTTING P-VALUES
+#Combine p-values for only covariates used in the LASSO model 
 Ps<-data.frame(unlassoed=p.values[formula.names],lassoed=p.values.lasso[formula.names])
 test<-as.matrix(Ps)
 n<-dim(Ps)[1]
 plot(seq(1,n),Ps[,2],col='blue',pch=16,xlab='Co-efficients kept in LASSO model',ylab='p-values')
 points(seq(1,n),Ps[,1],col='red',pch=16)
+#Adding lines between points to show the change
 for (i in 1:n){
   segments(x0=i,y0=Ps[i,1],x1=i,y1=Ps[i,2])
 }
+#Adding 0.05 significance level line
 abline(h=0.05,col='black',lty=2)
 legend("topleft",pch=c(16,16),col=c('red','blue'),cex=1.2,legend=c("baseline model","lasso model"))
 ```
