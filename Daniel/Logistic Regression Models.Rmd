@@ -1,0 +1,248 @@
+---
+title: "Model work refined"
+author: "Daniel Gardner"
+date: "`r Sys.Date()`"
+output:
+  pdf_document: default
+  html_document: default
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+```{r}
+#Loading in packages
+set.seed(1234)
+suppressPackageStartupMessages(library(tidyverse))
+suppressPackageStartupMessages(library(caret))
+suppressPackageStartupMessages(library(verification))
+library(repr)
+library(tidyverse)
+library(tidymodels)
+library(pROC)
+```
+
+```{r}
+#Creating gini function (Used later for model validation)
+normalizedGini <- function(aa, pp) {
+    Gini <- function(a, p) {
+        if (length(a) !=  length(p)) stop("Actual and Predicted need to be equal lengths!")
+        temp.df <- data.frame(actual = a, pred = p, range=c(1:length(a)))
+        temp.df <- temp.df[order(-temp.df$pred, temp.df$range),]
+        population.delta <- 1 / length(a)
+        total.losses <- sum(a)
+        null.losses <- rep(population.delta, length(a)) # Hopefully is similar to accumulatedPopulationPercentageSum
+        accum.losses <- temp.df$actual / total.losses # Hopefully is similar to accumulatedLossPercentageSum
+        gini.sum <- cumsum(accum.losses - null.losses) # Not sure if this is having the same effect or not
+        sum(gini.sum) / length(a)
+    }
+    Gini(aa,pp) / Gini(aa,aa)
+}
+```
+
+```{r}
+#Loading in refined training data
+train<-read.csv("train_new.csv")
+#Delete X and id column
+train<-train[,-c(1,2)]
+
+#Then split into training and validation set
+train_index <- sample(c (TRUE, FALSE), nrow (train), replace=TRUE, prob=c (0.7,0.3))
+# split the data according to the train index
+training <- as.data.frame(train[train_index, ])
+testing <- as.data.frame(train[!train_index, ])
+```
+
+```{r}
+#REMOVING LINEAR COMBINATIONS
+
+# find any linear combos in features
+lin_comb <- findLinearCombos(training)
+# take set difference of feature names and linear combos
+d <- setdiff(seq(1:ncol(training)), lin_comb$remove)
+# remove linear combo columns
+removed_columns<-names(training)[-d]
+training <- training[, d]
+training<-as.data.frame(training)
+
+```
+
+```{r}
+#Building baseline logistic regression model
+logmod <- glm(target ~ . , data = training, family = binomial(link = 'logit'))
+p.values<-summary(logmod)$coefficients[,4]
+hist(p.values)
+abline(v=0.05,col='red',lwd=2,lty=2)
+```
+
+```{r}
+#Building LASSO model by hand
+
+#First we group all variables with p-values < 0.05
+formula.names<-logmod %>% tidy() %>% filter(p.value < 0.05) %>% pull(term)
+formula.names<-formula.names[-1]
+
+#Then create a formula containing only these variables
+model.formula<-paste("target ~ ",formula.names[1])
+for (i in 2:(length(formula.names))){
+  model.formula<-paste(model.formula," + ",formula.names[i])
+}
+
+logmod.lasso <- glm(model.formula, data = training, family = binomial(link = 'logit'))
+
+p.values.lasso<-summary(logmod.lasso)$coefficients[,4]
+hist(p.values.lasso)
+abline(v=0.05,col='red',lwd=2,lty=2)
+```
+
+```{r}
+Ps<-data.frame(unlassoed=p.values[formula.names],lassoed=p.values.lasso[formula.names])
+test<-as.matrix(Ps)
+n<-dim(Ps)[1]
+plot(seq(1,n),Ps[,2],col='blue',pch=16,xlab='Co-efficients kept in LASSO model',ylab='p-values')
+points(seq(1,n),Ps[,1],col='red',pch=16)
+for (i in 1:n){
+  segments(x0=i,y0=Ps[i,1],x1=i,y1=Ps[i,2])
+}
+abline(h=0.05,col='black',lty=2)
+legend("topleft",pch=c(16,16),col=c('red','blue'),cex=1.2,legend=c("baseline model","lasso model"))
+```
+
+
+
+```{r}
+#Building LASSO and ridge models using the glmnet package
+library(glmnet)
+#Convert our training data intot two response and covariate matrices
+X<-as.matrix(training[,-1])
+y<-as.matrix(training[,1])
+
+#Building standard ridge and LASSO fits with very small lambda
+ridge.fit<-glmnet(X,y,lambda=1e-7,standardise=TRUE,alpha=0)
+lasso.fit<-glmnet(X,y,lambda=1e-7,standardise=TRUE,alpha=1)
+
+#Visualising the change in coefficients
+plotter<-function(a,b){
+  par(mar=c(2.5,2.5,.5,.5))
+    plot(coef(logmod),ylim=c(-0.5,0.5),xlim=c(a,b),ylab="Co-efficient",xlab=paste("Covariates between",as.character(a)," and ",as.character(b)))
+    points(coef(ridge.fit),pch=2,col=2)
+    points(coef(lasso.fit),pch=3,col=4)
+    legend("bottomright",pch=c(1,2,3),col=c(1,2,4),cex=.8,legend=c("baseline","ridge","lasso"))
+}
+
+#Entire beta on the left with a zoomed-in snapshot on the right
+par(mfrow=c(1,2))
+plotter(1,length(coef(logmod)))
+plotter(1,70)
+```
+
+Similar to the by-hand method above, the vast majority of variables are pushed down to 0 or near enough, with only a few kept as signficant.
+
+```{r}
+#Cross-Validation mddels
+
+#We use the default 10-fold cross validation method in glmnet to find the an optimal value of lambda
+cv.ridge.fit<-cv.glmnet(X,y,standardise=TRUE,alpha=0)
+cv.lasso.fit<-cv.glmnet(X,y,standardise=TRUE,alpha=1)
+
+#We then use the optimised lambda.min and lambda.1se to get two optimised models each for regression and LASSO
+cv.lasso.fit.min<-glmnet(X,y,lambda=cv.lasso.fit$lambda.min,standardise=TRUE,alpha=1)
+cv.lasso.fit.1se<-glmnet(X,y,lambda=cv.lasso.fit$lambda.1se,standardise=TRUE,alpha=1)
+cv.ridge.fit.min<-glmnet(X,y,lambda=cv.ridge.fit$lambda.min,standardise=TRUE,alpha=0)
+cv.ridge.fit.1se<-glmnet(X,y,lambda=cv.ridge.fit$lambda.1se,standardise=TRUE,alpha=0)
+
+#Again we can visualise the data here in a zoomed-in snapshot
+par(mar=c(2.5,2.5,.5,.5))
+plot(coef(logmod),ylab='',ylim=c(-0.5,0.5),xlim=c(20,40))
+points(coef(cv.ridge.fit.min),pch=2,col=2)
+points(coef(cv.lasso.fit.min),pch=3,col=4)
+points(coef(cv.ridge.fit.1se),pch=2,col=3)
+points(coef(cv.lasso.fit.1se),pch=3,col=5)
+legend("bottomright",pch=c(1,2,3,2,3),col=c(1,2,4,3,5),cex=.8,legend=c("baseline","ridge-min","lasso-min","ridge-1se","lasso-1se"))
+```
+As we can see hear the 1se models are overly harsh on their penalties, setting pretty much every co-efficient to 0, whereas the models using the minimum lambda and much more fair.
+```{r}
+#Validation
+
+#Saving the actual target values
+actual<-testing$target
+
+# remove linear combo columns
+testing <- testing[, d]
+testing<-as.data.frame(testing)
+#Removing the target column
+testing<-testing[-1]
+
+#Getting predicted values for p_i via the default predict function in R
+baseline.preds<-predict(logmod,newdata=testing,type='response')
+logmod.lasso.preds<-predict(logmod.lasso,newdata=testing,type='response')
+
+#Getting predicted values for p_i via glmnet's predict function - this requires the testing data becoming a matrix
+lasso.min.preds<-predict.glmnet(cv.lasso.fit.min,newx=as.matrix(testing))
+lasso.1se.preds<-predict.glmnet(cv.lasso.fit.1se,newx=as.matrix(testing))
+ridge.min.preds<-predict.glmnet(cv.ridge.fit.min,newx=as.matrix(testing))
+ridge.1se.preds<-predict.glmnet(cv.ridge.fit.1se,newx=as.matrix(testing))
+
+#Combining all our predicted data into one data frame
+preds<-data.frame(
+  'baseline'=baseline.preds,
+  'logmod.lasso'=logmod.lasso.preds,
+  'lasso.min'=lasso.min.preds[,1],
+  'lasso.1se'=lasso.1se.preds[,1],
+  'ridge.min'=ridge.min.preds[,1],
+  'ridge.1se'=ridge.1se.preds[,1],
+  stringsAsFactors = FALSE
+)
+
+#Creating a table showing the ROC area and NormalisedGini score for each model
+validation<-matrix(data=NA,nrow=6,ncol=3)
+for (i in 1:6){
+  validation[i,1]<-names(preds)[i]
+  validation[i,2]<-roc.area(actual,preds[,i])$A
+  validation[i,3]<-normalizedGini(actual,preds[,i])
+}
+
+validation
+```
+
+```{r}
+#Code for trying an even more simplistic baseline model, with no changing to the data beforehand 
+
+#train_bad<-read.csv('new_train.csv')
+#train_bad<-train_bad[-c(1,2)]
+#test_bad<-read.csv('new_test.csv')
+#bad.actual<-test_bad$target
+#test_bad<-test_bad[-2]
+#logmod.bad<-glm(target~.-id,data=train_bad,family = binomial(link = 'logit'))
+#preds.bad<-predict(logmod.bad,newdata=test_bad,type='response')
+#roc.area(bad.actual,preds.bad)
+#normalizedGini(bad.actual,preds.bad)
+```
+
+```{r}
+#Attempting to reduce dimensionality via PCA
+
+#prin_comp <- prcomp(training[-1], scale. = T)
+#std_dev <- prin_comp$sdev
+#pr_var <- std_dev^2
+#prop_varex <- pr_var/sum(pr_var)
+
+#plot(prop_varex, xlab = "Principal Component",
+#         ylab = "Proportion of Variance Explained",
+#         type = "b")
+         
+#cumulative plot         
+#   plot(cumsum(prop_varex), xlab = "Principal Component",
+#        ylab = "Cumulative Proportion of Variance Explained",type="b")
+   
+#training_pca<-data.frame(target=training$target,prin_comp$x)
+
+#logmod.pca<-glm(target~.,data=training_pca,family = binomial(link = 'logit'))
+
+#pca.testing<-prcomp(testing,scale.=T)
+
+#preds.logmod.pca<-predict(logmod.pca,newdata=pca.testing,type='response')
+```
+
+
