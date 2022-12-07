@@ -2,7 +2,9 @@
 title: "Model work refined"
 author: "Daniel Gardner"
 date: "`r Sys.Date()`"
-output: html_document
+output:
+  pdf_document: default
+  html_document: default
 ---
 
 ```{r setup, include=FALSE}
@@ -69,6 +71,9 @@ training<-as.data.frame(training)
 ```{r}
 #Building baseline logistic regression model
 logmod <- glm(target ~ . , data = training, family = binomial(link = 'logit'))
+p.values<-summary(logmod)$coefficients[,4]
+hist(p.values)
+abline(v=0.05,col='red',lwd=2,lty=2)
 ```
 
 ```{r}
@@ -85,7 +90,26 @@ for (i in 2:(length(formula.names))){
 }
 
 logmod.lasso <- glm(model.formula, data = training, family = binomial(link = 'logit'))
+
+p.values.lasso<-summary(logmod.lasso)$coefficients[,4]
+hist(p.values.lasso)
+abline(v=0.05,col='red',lwd=2,lty=2)
 ```
+
+```{r}
+Ps<-data.frame(unlassoed=p.values[formula.names],lassoed=p.values.lasso[formula.names])
+test<-as.matrix(Ps)
+n<-dim(Ps)[1]
+plot(seq(1,n),Ps[,2],col='blue',pch=16,xlab='Co-efficients kept in LASSO model',ylab='p-values')
+points(seq(1,n),Ps[,1],col='red',pch=16)
+for (i in 1:n){
+  segments(x0=i,y0=Ps[i,1],x1=i,y1=Ps[i,2])
+}
+abline(h=0.05,col='black',lty=2)
+legend("topleft",pch=c(16,16),col=c('red','blue'),cex=1.2,legend=c("baseline model","lasso model"))
+```
+
+
 
 ```{r}
 #Building LASSO and ridge models using the glmnet package
@@ -135,7 +159,7 @@ points(coef(cv.ridge.fit.min),pch=2,col=2)
 points(coef(cv.lasso.fit.min),pch=3,col=4)
 points(coef(cv.ridge.fit.1se),pch=2,col=3)
 points(coef(cv.lasso.fit.1se),pch=3,col=5)
-legend("bottomright",pch=c(2,3,2,3),col=c(2,4,3,5),cex=1,legend=c("ridge-min","lasso-min","ridge-1se","lasso-1se"))
+legend("bottomright",pch=c(1,2,3,2,3),col=c(1,2,4,3,5),cex=.8,legend=c("baseline","ridge-min","lasso-min","ridge-1se","lasso-1se"))
 ```
 As we can see hear the 1se models are overly harsh on their penalties, setting pretty much every co-efficient to 0, whereas the models using the minimum lambda and much more fair.
 ```{r}
@@ -183,40 +207,42 @@ validation
 ```
 
 ```{r}
-train_bad<-read.csv('new_train.csv')
-train_bad<-train_bad[-c(1,2)]
-test_bad<-read.csv('new_test.csv')
-bad.actual<-test_bad$target
-test_bad<-test_bad[-2]
-logmod.bad<-glm(target~.-id,data=train_bad,family = binomial(link = 'logit'))
-preds.bad<-predict(logmod.bad,newdata=test_bad,type='response')
-roc.area(bad.actual,preds.bad)
-normalizedGini(bad.actual,preds.bad)
+#Code for trying an even more simplistic baseline model, with no changing to the data beforehand 
+
+#train_bad<-read.csv('new_train.csv')
+#train_bad<-train_bad[-c(1,2)]
+#test_bad<-read.csv('new_test.csv')
+#bad.actual<-test_bad$target
+#test_bad<-test_bad[-2]
+#logmod.bad<-glm(target~.-id,data=train_bad,family = binomial(link = 'logit'))
+#preds.bad<-predict(logmod.bad,newdata=test_bad,type='response')
+#roc.area(bad.actual,preds.bad)
+#normalizedGini(bad.actual,preds.bad)
 ```
 
 ```{r}
-#PCA?
+#Attempting to reduce dimensionality via PCA
 
-prin_comp <- prcomp(training[-1], scale. = T)
-std_dev <- prin_comp$sdev
-pr_var <- std_dev^2
-prop_varex <- pr_var/sum(pr_var)
+#prin_comp <- prcomp(training[-1], scale. = T)
+#std_dev <- prin_comp$sdev
+#pr_var <- std_dev^2
+#prop_varex <- pr_var/sum(pr_var)
 
-plot(prop_varex, xlab = "Principal Component",
-         ylab = "Proportion of Variance Explained",
-         type = "b")
+#plot(prop_varex, xlab = "Principal Component",
+#         ylab = "Proportion of Variance Explained",
+#         type = "b")
          
 #cumulative plot         
-   plot(cumsum(prop_varex), xlab = "Principal Component",
-        ylab = "Cumulative Proportion of Variance Explained",type="b")
+#   plot(cumsum(prop_varex), xlab = "Principal Component",
+#        ylab = "Cumulative Proportion of Variance Explained",type="b")
    
-training_pca<-data.frame(target=training$target,prin_comp$x)
+#training_pca<-data.frame(target=training$target,prin_comp$x)
 
-logmod.pca<-glm(target~.,data=training_pca,family = binomial(link = 'logit'))
+#logmod.pca<-glm(target~.,data=training_pca,family = binomial(link = 'logit'))
 
-pca.testing<-prcomp(testing,scale.=T)
+#pca.testing<-prcomp(testing,scale.=T)
 
-preds.logmod.pca<-predict(logmod.pca,newdata=pca.testing,type='response')
+#preds.logmod.pca<-predict(logmod.pca,newdata=pca.testing,type='response')
 ```
 
 
