@@ -127,7 +127,7 @@ library(glmnet)
 #Convert our training data into two response and covariate matrices y and X
 X<-as.matrix(training[,-1])
 y<-as.matrix(training[,1])
-#Building standard ridge and LASSO fits with very small lambda
+#Building standard ridge and LASSO fits with very small penalty parameter lambda
 ridge.fit<-glmnet(X,y,lambda=1e-7,standardise=TRUE,alpha=0)
 lasso.fit<-glmnet(X,y,lambda=1e-7,standardise=TRUE,alpha=1)
 #Visualising the change in coefficients
@@ -138,16 +138,16 @@ plotter<-function(a,b){
     points(coef(lasso.fit),pch=3,col=4)
     legend("bottomright",pch=c(1,2,3),col=c(1,2,4),cex=.8,legend=c("baseline","ridge","lasso"))
 }
-#Entire beta on the left with a zoomed-in snapshot on the right
+#Plotting the full plot vs a zoomed in version.
 par(mfrow=c(1,2))
 plotter(1,length(coef(logmod)))
 plotter(1,70)
 ```
 
-Similar to the by-hand method above, the vast majority of variables are pushed down to 0 or near enough, with only a few kept as signficant.
+Similar to the by-hand method above, the vast majority of co-efficients are pushed down to 0 or near enough, with only a few kept as signficant. Also at this very low level of the penalty parameter lambda=1e-7, the estimates for LASSO regression and ridge regression look very similar. To choose the best parameter of lambda, we use cross-validation on our training data. The cv.glmnet function produces two possible options: the minimum cross validated error (lambda.min), and the largest lambda such that the cross-validated error is within one standard error of the minimum (lambda.1se).
 
 ```{r}
-#Cross-Validation mddels
+#CROSS-VALIDATION MODELS
 #We use the default 10-fold cross validation method in glmnet to find the an optimal value of lambda
 cv.ridge.fit<-cv.glmnet(X,y,standardise=TRUE,alpha=0)
 cv.lasso.fit<-cv.glmnet(X,y,standardise=TRUE,alpha=1)
@@ -163,11 +163,15 @@ points(coef(cv.ridge.fit.min),pch=2,col=2)
 points(coef(cv.lasso.fit.min),pch=3,col=4)
 points(coef(cv.ridge.fit.1se),pch=2,col=3)
 points(coef(cv.lasso.fit.1se),pch=3,col=5)
-legend("bottomright",pch=c(2,3,2,3),col=c(2,4,3,5),cex=1,legend=c("ridge-min","lasso-min","ridge-1se","lasso-1se"))
+legend("bottomright",pch=c(1,2,3,2,3),col=c(1,2,4,3,5),cex=.8,legend=c("baseline","ridge-min","lasso-min","ridge-1se","lasso-1se"))
 ```
-As we can see hear the 1se models are overly harsh on their penalties, setting pretty much every co-efficient to 0, whereas the models using the minimum lambda and much more fair.
+
+As we can see from this snapshot of the new co-efficients, the 1se models are overly harsh on their penalties, setting pretty much every co-efficient to 0, whereas the models using the minimum lambda and much more fair. We would expect this to negatively affect prediction, but we will include them anyway in our final analysis for comparison.
+\\ \\
+Now finally we can compare all 5 potenital improvements to our baseline regression, using the NormalisedGini score as defined at the beginning, and the area under the ROC curve.
+
 ```{r}
-#Validation
+#VALIDATION
 #Saving the actual target values
 actual<-testing$target
 # remove linear combo columns
@@ -202,4 +206,5 @@ for (i in 1:6){
 }
 validation
 ```
+Here we can see that using the penalty parameter of lambda.min, we gain a slight improvement in prediction over the baseline logistic regression model. The scores achieved by ridge.min and lasso.min are near identical, and either could be chosen really, although as lasso.min holds a slight advantage we will choose this as our most optimised regression model. Also we can see that the models using lambda.1se perform very badly as expected, performing even worse than the default baseline model. This confirms what we suspected before about the penalties they assign to the co-efficients being to too extreme. As well as this, whilst our original LASSO model performs worse than the baseline, the difference is not massive, so it could be argued that it could be worth taking a reduction in accuracy to reduce the dimensionality of the model and the time it takes to run.
 
