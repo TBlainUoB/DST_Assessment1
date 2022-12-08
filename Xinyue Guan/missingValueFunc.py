@@ -22,27 +22,31 @@ testData = testData.drop(col_to_drop, axis=1)
 #%%
 def missingvalues(pdData):
     features = ['ps_reg_03', 'ps_car_12', 'ps_car_14', 'ps_car_11']
-    pdData1 = pdData
+    pdData00 = pdData.copy()
+    pdData0 = pdData.copy()
+    pdData1 = pdData.copy()
     pdData1 = pdData1[pdData1['ps_car_14'] != -1]
     pdData1 = pdData1[pdData1['ps_reg_03'] != -1]
     pdData1 = pdData1[pdData1['ps_car_12'] != -1]
     pdData1 = pdData1[pdData1['ps_car_11'] != -1]
     X_train = pdData1.drop(['target', 'id','ps_car_14','ps_reg_03','ps_car_11','ps_car_12'], axis=1)
     X_train = pd.DataFrame(X_train)
-    pdData0 = pdData.drop(['target', 'id','ps_car_14','ps_reg_03','ps_car_11','ps_car_12'], axis=1)
+    pdData0 = pdData0.drop(['target', 'id','ps_car_14','ps_reg_03','ps_car_11','ps_car_12'], axis=1)
     for i in features:
             l_model = LinearRegression()
             y_train = pdData1[i].values
             l_model.fit(X_train,y_train)
-            for j in range(pdData.shape[0]):
-                if pdData[i].loc[j] == -1:
+            for j in range(pdData00.shape[0]):
+                if pdData00[i].loc[j] == -1:
                     X = pdData0.loc[j]
                     X = pd.DataFrame(X).transpose()
-                    pdData[i].loc[j] = l_model.predict(X)
-    return pdData
+                    pdData00[i].loc[j] = l_model.predict(X)
+    return pdData00
 
 
 #%%
-trainData1= missingvalues(trainData)
+trainData1 = missingvalues(trainData)
 
+
+#%%%
 
