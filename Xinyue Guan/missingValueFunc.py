@@ -9,8 +9,8 @@ Created on Wed Dec  7 18:04:33 2022
 import pandas as pd
 from sklearn.linear_model import LinearRegression
 #%%
-trainData = pd.read_csv("Data/new_train.csv")
-testData = pd.read_csv("Data/new_test.csv")
+trainData = pd.read_csv("Data/train.csv")
+testData = pd.read_csv("Data/test.csv")
 
 #%%
 trainData.drop(['ps_car_03_cat','ps_car_05_cat'], inplace=True, axis=1)
@@ -45,7 +45,6 @@ def missingvalues(pdData):
 
 #%%
 trainData1 = missingvalues(trainData)
-trainData1.to_csv("imputetrain.csv", index=False)
+trainData1.to_csv("Data/imputetrain.csv", index=False)
 
-#%%%
 
