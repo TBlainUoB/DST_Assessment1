@@ -4,10 +4,9 @@ from datetime import datetime
 from numba import jit
 import lightgbm as lgbm
 from sklearn.impute import SimpleImputer
-from sklearn.model_selection import train_test_split, RandomizedSearchCV, GridSearchCV
-from sklearn.model_selection import StratifiedKFold, StratifiedShuffleSplit
-from sklearn.preprocessing import LabelEncoder, StandardScaler
-from sklearn.metrics import roc_auc_score
+from sklearn.model_selection import RandomizedSearchCV
+from sklearn.model_selection import StratifiedKFold
+from sklearn.preprocessing import StandardScaler
 
 
 def timer(start_time=None):
@@ -89,18 +88,29 @@ def DropCalcCol(train, test):
 
 
 Kaggle = False
+impute = True
 if Kaggle == False:
-    train = pd.read_csv("new_train.csv")
-    test = pd.read_csv("new_test.csv")
+    if impute == True:
+        train = pd.read_csv("imputeTrain.csv")
+        test = pd.read_csv("imputetest.csv")
+    else:
+        train = pd.read_csv("new_train.csv")
+        test = pd.read_csv("new_test.csv")
+        test = dropmissingcol(test)
+        train = dropmissingcol(train)
     target_test = test['target'].values
     test = test.drop(['target'], axis=1)
 else:
-    train = pd.read_csv("Dataset/train.csv")
-    test = pd.read_csv("Dataset/test.csv")
+    if impute == True:
+        train = pd.read_csv("imputetrainKag.csv")
+        test = pd.read_csv("imputetestKag.csv")
+    else:
+        train = pd.read_csv("Dataset/train.csv")
+        test = pd.read_csv("Dataset/test.csv")
+        test = dropmissingcol(test)
+        train = dropmissingcol(train)
 
-train = dropmissingcol(train)
 train = missingvalues(train)
-test = dropmissingcol(test)
 test = missingvalues(test)
 
 y_train = train['target'].values
