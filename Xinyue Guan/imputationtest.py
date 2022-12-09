@@ -7,8 +7,11 @@ Created on Thu Dec  8 19:49:24 2022
 """
 #%%
 import pandas as pd
+import numpy as np
+from math import ceil
 from sklearn.preprocessing import StandardScaler
 from sklearn.neighbors import KNeighborsClassifier
+from sklearn.model_selection import StratifiedKFold,cross_val_score
 #%%
 train = pd.read_csv("Data/imputetrain.csv")
 test = pd.read_csv("Data/New_test.csv")
@@ -55,12 +58,52 @@ scores1 = cross_val_score(knn_model1, X_train, y_train1, scoring='roc_auc',
 #0.50661
 #0.509524
 #0.504529
+#score with mean imputation
+
+#0.504489
+#0.508206
+#0.506483
+#0.505325
+#0.503437
+#score with regression impoutation
+#%%
+scores3 = cross_val_score(knn_model3, X_train, y_train1, scoring='roc_auc',
+                         cv=cv, n_jobs=-1)
+    
+
+#0.509314
+#0.509181
+#0.514126
+#0.513897
+#0.513831
+
+#0.517251
+#0.515533
+#0.513834
+#0.511852
+#0.512093
 
 
 
+#%%
+scores5 = cross_val_score(knn_model5, X_train, y_train1, scoring='roc_auc',
+                         cv=cv, n_jobs=-1)
 
 
+#0.517008
+#0.514352
+#0.520529
+#0.516512
+#0.518471
 
+#0.525861
+#0.522334
+#0.519779
+#0.516488
+#0.513823
+
+#By comparing the auc scores for 5-fold cross validation with mean imputation and regression imputation, we can see a very slight improvement
+#by using regression imputation.
 
 
 

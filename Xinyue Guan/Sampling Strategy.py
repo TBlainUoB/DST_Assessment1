@@ -91,10 +91,10 @@ knn_model1 = KNeighborsClassifier(n_neighbors=1)
 knn_model1.fit(X_train_under, y_train_under)
 fpr, tpr, threshold = roc_curve(y_test,knn_model1.predict(X_test))
 print(auc(fpr, tpr))
-#0.5243804977790577
+#0.5234220099241415
 y_prob1 = knn_model1.predict_proba(X_test)
 print(gini(y_test,y_prob1[:,1]))
-#0.05497802714671829
+#0.04668616773656997
 
 #%%
 knn_model3 = KNeighborsClassifier(n_neighbors=3)
@@ -194,22 +194,23 @@ def plot_2d_space(X, y, label='Classes'):
 
 #%%
 X = trainData.copy()
+y_train = X['target'].values
 X.drop(['id','target'],axis = 1)
 pca = PCA(n_components=2)
 X = pca.fit_transform(X)
 
-plot_2d_space(X, y, 'Imbalanced dataset (2 PCA components)')
+plot_2d_space(X, y_train, 'Imbalanced dataset (2 PCA components)')
 
 #%%
 rus = RandomUnderSampler(return_indices=True)
-X_rus, y_rus, id_rus = rus.fit_sample(X, y)
+X_rus, y_rus, id_rus = rus.fit_sample(X, y_train)
 
 print('Removed indexes:', id_rus)
 
 plot_2d_space(X_rus, y_rus, 'Random under-sampling')
 
 
-
+#There are a few more sampling strategy, for example, clustering before under/over sampling, so you reduce the same proportion for each cluster, however I didn't have time to try these.
 
 
 
