@@ -86,26 +86,17 @@ for f in range(X_train.shape[1]):
 
 #%%
 cv = StratifiedKFold(n_splits=5, random_state=0, shuffle=True)
-pred_test_full = np.zeros(ceil(4*len(id_train)/5))
-cv_score = []
 knn_model1 = KNeighborsClassifier(n_neighbors=1)
 knn_model3 = KNeighborsClassifier(n_neighbors=3)
 knn_model5 = KNeighborsClassifier(n_neighbors=5)
 
-#%%
-scores = cross_val_predict(knn_model1, X_train, y_train1, cv=cv)
 
 
 #%%
-t0 = time.time()
-scores = cross_val_predict(knn_model1, X_train, y_train1, cv=cv)
-fpr, tpr, threshold = roc_curve(y_test,clf.predict(X_test))
-scores2.append(auc(fpr, tpr))
-scores.to_csv('1NN_5-fold_cv_predicts.csv')
-t1 = time.time()
 
-runtime = t1-t0
-print(runtime)
+scores1 = cross_val_score(knn_model1, X_train, y_train1, scoring='roc_auc', cv=cv, n_jobs=-1)
+scores1.to_csv('1NN_5-fold_cv_auc.csv')
+
 
 
 #%%
@@ -118,8 +109,15 @@ scores1 = cross_val_score(knn_model1, X_train, y_train1, scoring='roc_auc',
 #0.509524
 #0.504529
 
-
 #This is code to implemetn k-fold cross validation.
+
+#%%
+
+scores = [[0.504489,0.508206,0.506483,0.505325,0.503437],
+          [0.517251,0.515533,0.513834,0.511852,0.512093],
+          [0.525861,0.522334,0.519779,0.516488,0.513823]]
+scores = pd.DataFrame(scores,columns=['1st_fold', '2nd_fold', '3rd_fold','4th_fold','5th_fold'])
+scores.to_csv('C:/Users/nd19620/OneDrive - University of Bristol/DST/DST_Assessment1/Report/auc_full_training_set.csv', index = False)
 
 #%%
 scores3 = cross_val_score(knn_model3, X_train, y_train1, scoring='roc_auc',
