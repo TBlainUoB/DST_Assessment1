@@ -111,13 +111,6 @@ scores1 = cross_val_score(knn_model1, X_train, y_train1, scoring='roc_auc',
 
 #This is code to implemetn k-fold cross validation.
 
-#%%
-
-scores = [[0.504489,0.508206,0.506483,0.505325,0.503437],
-          [0.517251,0.515533,0.513834,0.511852,0.512093],
-          [0.525861,0.522334,0.519779,0.516488,0.513823]]
-scores = pd.DataFrame(scores,columns=['1st_fold', '2nd_fold', '3rd_fold','4th_fold','5th_fold'])
-scores.to_csv('C:/Users/nd19620/OneDrive - University of Bristol/DST/DST_Assessment1/Report/auc_full_training_set.csv', index = False)
 
 #%%
 scores3 = cross_val_score(knn_model3, X_train, y_train1, scoring='roc_auc',
