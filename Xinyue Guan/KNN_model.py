@@ -130,7 +130,12 @@ scores5 = cross_val_score(knn_model5, X_train, y_train1, scoring='roc_auc',
 #0.518471
 
 
+#%%
+data = [[0.502806,0.50558,0.50661,0.509524,0.504529],[0.509314,0.509181,0.514126,0.513897,0.513831],[0.517008,0.514352,0.520529,0.516512,0.518471]]
 
+for k in range(3):
+    for i in range(5):
+        plot(data[k,i],shape=)
 
 
 
