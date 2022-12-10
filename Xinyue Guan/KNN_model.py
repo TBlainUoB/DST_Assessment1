@@ -15,7 +15,8 @@ from sklearn.metrics import  roc_curve,auc, accuracy_score, confusion_matrix
 from math import ceil
 from sklearn.ensemble import BaggingClassifier,RandomForestClassifier
 from sklearn.decomposition import PCA
-from sklearn.model_selection import StratifiedKFold, train_test_split,cross_val_score
+from sklearn.model_selection import StratifiedKFold, train_test_split,cross_val_score,cross_val_predict
+import time
 #%%
 train = pd.read_csv('Data/New_train.csv')
 test = pd.read_csv('Data/New_test.csv')
@@ -90,6 +91,22 @@ cv_score = []
 knn_model1 = KNeighborsClassifier(n_neighbors=1)
 knn_model3 = KNeighborsClassifier(n_neighbors=3)
 knn_model5 = KNeighborsClassifier(n_neighbors=5)
+
+#%%
+scores = cross_val_predict(knn_model1, X_train, y_train1, cv=cv)
+
+
+#%%
+t0 = time.time()
+scores = cross_val_predict(knn_model1, X_train, y_train1, cv=cv)
+fpr, tpr, threshold = roc_curve(y_test,clf.predict(X_test))
+scores2.append(auc(fpr, tpr))
+scores.to_csv('1NN_5-fold_cv_predicts.csv')
+t1 = time.time()
+
+runtime = t1-t0
+print(runtime)
+
 
 #%%
 scores1 = cross_val_score(knn_model1, X_train, y_train1, scoring='roc_auc',
