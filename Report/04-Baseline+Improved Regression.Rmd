@@ -208,3 +208,25 @@ validation
 ```
 Here we can see that using the penalty parameter of lambda.min, we gain a slight improvement in prediction over the baseline logistic regression model. The scores achieved by ridge.min and lasso.min are near identical, and either could be chosen really, although as lasso.min holds a slight advantage we will choose this as our most optimised regression model. Also we can see that the models using lambda.1se perform very badly as expected, performing even worse than the default baseline model. This confirms what we suspected before about the penalties they assign to the co-efficients being to too extreme. As well as this, whilst our original LASSO model performs worse than the baseline, the difference is not massive, so it could be argued that it could be worth taking a reduction in accuracy to reduce the dimensionality of the model and the time it takes to run.
 
+```{r}
+#PREDICTION
+#Loading in actual test data
+test<-read.csv('test_new.csv')
+#Save id column
+ids<-test['id']
+test<-test[-c(1,2)]
+#Remove linear combinations
+test <- test[, d]
+test<-as.data.frame(test)
+#Removing the target column
+test<-test[-1]
+
+
+baseline.preds.test<-predict(logmod,newdata=test,type='response')
+table1<-data.frame('id'=ids,'predictions'=baseline.preds.test)
+write.csv(table1,'baseline_preds.csv')
+
+lasso.min.preds.test<-predict.glmnet(cv.lasso.fit.min,newx=as.matrix(test))
+table2<-data.frame('id'=ids,'predictions'=lasso.min.preds.test)
+write.csv(table2,'lasso_preds.csv')
+```
