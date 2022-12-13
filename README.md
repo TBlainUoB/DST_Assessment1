@@ -18,7 +18,7 @@ Porto Seguro’s Safe Driver Prediction Predict if a driver will file an insuran
 
 * 03-Data Handling
 
-* 04-Logistic Regression Data
+* 04-Logistic Regression Model
 
 * 05-kNN Model
 
