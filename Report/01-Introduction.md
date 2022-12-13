@@ -7,6 +7,6 @@ The dataset can be found in this link: https://www.kaggle.com/competitions/porto
 
 
 
-We found that the test dataset on Kaggle does not contain labels, so we have to split the train dataset into new test dataset and new train dataset. And we need to keep the test dataset.
+We found that the test dataset on Kaggle does not contain labels, so we have to randomly split the original train dataset from Kaggle into new test dataset and new train dataset, save them as csv files for group members to use. We have to make sure we train our models only on the train set, and the test is saved only for testing the performance of our "submission model".
 
 https://drive.google.com/drive/folders/1tCLHEbImZvoBpLctSq1a84F8n80aBt5t?usp=sharing
