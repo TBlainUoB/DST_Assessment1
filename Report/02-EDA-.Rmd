@@ -1,0 +1,203 @@
+---
+title: "EDA(2)"
+output: html_document
+date: "2022-12-12"
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+## Libraries {#libs}
+
+```{r}
+
+library(tidyverse)
+library(corrplot)
+library(caret)
+library(randomForest)
+library(ggthemes)
+library(VIM)
+library(dplyr) 
+library(readr) 
+library(data.table) 
+library(tibble) 
+library(tidyr) 
+library(stringr) 
+library(forcats) 
+library(rlang) 
+```
+
+## Data Import {#import}
+
+```{r}
+
+dtrain <- read_csv('/Users/xinyu/Downloads/Data/train.csv')
+
+```
+
+## Overview of Data {#overview}
+
+```{r, echo = FALSE}
+
+print('Training data size in RAM:')
+print(object.size(dtrain), units = 'Mb')
+
+```
+
+
+```{r}
+
+glimpse(dtrain)
+
+```
+
+There are just under 600,000 observations and 59 columns including the `id` and `target` column. The `target` column is 1 if the customer filed a claim and 0 if not.
+
+
+We find:
+
+- There are lots of features here. In total, our *training* data has 59 variables, including *id* and *target*. In some of them we already see a number of NAs.
+
+- Based on he [data description](https://www.kaggle.com/c/porto-seguro-safe-driver-prediction/data), the names of the features indicate whether they are binary (*bin*) or categorical (*cat*) variables. Everything else is continuous or ordinal.
+
+- A few groups are defined, and features that belong to these groups include paterns in the name (ind, reg, car, calc). The names of the variables indicate certain properties: "Ind" is related to individual or driver, "reg" is related to region, "car" is related to car itself and "calc" is an calculated feature.
+
+- Note, that there is a *ps\_car\_11* as well as a *ps\_car\_11\_cat*. This is the only occasion where the numbering per group is neither consecutive nor unique. Probably a typo in the script that created the variable names.
+
+- The value that is subject of prediction is in the "target" column. This one indicates whether or not a claim was filed for that insured person. "id" is a data input ordinal number.
+
+- A missing value is indicated by -1.
+
+- The features are anonymised.
+
+From the competitions page:
+
+_"In the train and test data, features that belong to similar groupings are tagged as such in the feature names (e.g., ind, reg, car, calc). In addition, feature names include the postfix bin to indicate binary features and cat to indicate categorical features. Features without these designations are either continuous or ordinal. Values of -1 indicate that the feature was missing from the observation. The target columns signifies whether or not a claim was filed for that policy holder"_
+
+## Target Feature Analysis {#target}
+
+First let's look at the target variable, which is the label we want to predict. We found earlier that there were no missing values for the target. We want to find out whether a claim has been filed ("1") or not ("0"): How many positives are there?
+
+```{r}
+
+ggplot(data = dtrain, aes(x = as.factor(target))) + 
+    geom_bar(fill = '#84a5a3') + 
+    labs(title = 'Distribution of Target Class (1 = claim filed)')
+
+```
+
+We find there are much more 0's than 1's:
+
+- Most cases have no filed claim:
+```{r}
+
+tab <- table(dtrain$target)
+print(tab)
+print(paste0(round((tab[2] / tab[1]) * 100, 2), "%", " of customers in the train set filed a claim."))
+
+
+```
+With less than 4% of policy holders filing a claim, so the problem is heavily imbalanced.
+
+
+## Feature Exploration {#features}
+
+### Missing Data
+
+
+
+
+
+Now we want to learn the percentage of NA that each variable has and understand the distribution of these NA.
+
+```{r}
+
+data.frame(feature = names(dtrain), 
+           per_miss = map_dbl(dtrain, function(x) { sum(x == - 1) / length(x) })) %>%
+    ggplot(aes(x = reorder(feature, -per_miss), y = per_miss)) + 
+    geom_bar(stat = 'identity', color = 'white', fill = '#5a64cd') +
+    theme(axis.text.x = element_text(angle = 90, hjust = 1)) + 
+    labs(x = '', y = '% missing', title = 'Missing Values by Feature') + 
+    scale_y_continuous(labels = scales::percent)
+
+
+
+```
+
+Most variables have no missing data. `ps_car_03_cat` has almost 70% of its values missing. `ps_car_05_cat` has about 45% missing. `ps_reg_03` has around 18% missing. The remaining three have only a small percent missing data. 
+
+
+The following command gives the sum of missing values in the whole training data frame column wise:
+
+```{r}
+train <- as.tibble(fread('/Users/xinyu/Downloads/Data/train.csv', na.strings=c("-1","-1.0")))
+colSums(is.na.data.frame(train))
+```
+
+We can see that  `ps_car_03_cat` has the largest amount of missing values, which is 411231. And `ps_car_05_cat` has the second largest number of missing values, which is 266551. `ps_reg_03` has 107772 missing values. 
+
+
+### Correlations
+
+
+We begin with a correlation matrix plot as a first comprehensive overview of our multi-parameter space.
+```{r}
+
+# Get features names that are not binary or categorical
+cont_vars <- names(dtrain)[!grepl("_cat|_bin", names(dtrain))]
+
+corrplot(cor(dtrain[, cont_vars][3:length(cont_vars)]), 
+         type = 'lower', 
+         col = colorRampPalette(c('#feeb8c', '#5a64cd'))(50),
+         tl.col = 'grey40',
+         mar = c(0,0,1,0),
+         title = 'Correlation Matrix of Continuous Features')
+
+
+```
+
+The group of `ind` variables show some correlation amongst themselves as well as with some of the `reg` and `car` features. The `calc` features do not appear to be correlated with anything, including the targets. So we would decide to drop off the `calc` variables. 
+
+
+
+
+### Feature Importance {#importance}
+We will check which features are the most important for our model. Here we run a very quick random forest model on the raw training data so that we can look at feature importance. 
+
+We first run the random forest then we can extract the feature importances and plot them. 
+```{r}
+
+library(caret)
+
+set.seed(12)
+sample_index <- sample(c(TRUE, FALSE), size = nrow(dtrain), replace = TRUE, prob = c(0.1, 0.9))
+
+x_train <- as.matrix(dtrain[sample_index, 3:59])
+y_train <- as.factor(dtrain$target[sample_index])
+
+
+rfmod <- train(x = x_train,
+               y = y_train, 
+               method = 'rf',
+               ntree = 20,
+               trControl = trainControl(method = 'boot', number = 1))
+
+```
+
+this is a rough attempt. We have not converted the categorical features into factors because it would dramatically increase the run time of the model. And so the importance of the categorical features in the plot may not be accurately represented. 
+
+```{r, fig.height = 10}
+
+importance(rfmod$finalModel) %>%
+    as.data.frame() %>%
+    rownames_to_column(var = 'Feature') %>%
+    ggplot(aes(x = reorder(Feature, MeanDecreaseGini), y = MeanDecreaseGini)) +
+    geom_point(color = '#5a64cd') + 
+    coord_flip() + 
+    theme_tufte() +
+    labs(x = '', title = 'Porto Feature Importance')
+    
+    
+```
