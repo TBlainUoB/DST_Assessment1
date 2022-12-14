@@ -10,6 +10,8 @@ Porto Seguro’s Safe Driver Prediction Predict if a driver will file an insuran
 
 * Xinyu Li
 
+Equity: 27/27/27/19
+
 ## Reading order
 
 * 01-Introduction
