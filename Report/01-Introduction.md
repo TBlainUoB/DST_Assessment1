@@ -9,7 +9,7 @@ https://drive.google.com/drive/folders/1tCLHEbImZvoBpLctSq1a84F8n80aBt5t?usp=sha
 
 The aim of our project is to implement different models for this binary classification task and evaluate the performance. 
 For evaluation, we will be using the Normalized Gini Coefficient. Gini is a vital metric in insurance because we care more about segregating high and low risks than predicting losses. A higher gini is going to mean our model is better able to tell between high risk and low risk cases. This will be explained more in chapter 7.
-We may also use the auc in places. This has a linear relationship to the Gini. 2*AUC - 1 = Gini
+We may also use the auc in places. This has a linear relationship to the Gini: 2*AUC - 1 = Gini.
 
 Required python packages:
 numpy
