@@ -26,8 +26,6 @@ Porto Seguro’s Safe Driver Prediction Predict if a driver will file an insuran
 
 * 07-Evaluation
 
-* 07.5-Evaluation
-
 * 08-Conclusion
 
 * Data (You should download the data set from the google drive provided in the Introduction)
